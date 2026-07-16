@@ -27,13 +27,18 @@ jobs:
         run: |
           pnpm add -D typescript@5
           pnpm exec cap sync
-      - name: List files to find workspace
-        run: find . -name "*.xcworkspace"
+
       - name: Build Unsigned App
         run: |
-          # Build the App
-          xcodebuild -workspace ios/App/App.xcworkspace -scheme App -configuration Release -derivedDataPath build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
-
+          # Build the App using the correct workspace path
+          xcodebuild -workspace ios/App/App.xcodeproj/project.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
       - name: Package into IPA
         run: |
           # Create Payload directory and zip the app
