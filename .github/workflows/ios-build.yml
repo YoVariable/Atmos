@@ -25,7 +25,7 @@ jobs:
 
       - name: Sync Capacitor
         run: |
-          pnpm add -wD typescript
+          pnpm add -D typescript
           pnpm exec cap sync
 
       # This is where your xcodebuild logic happens
