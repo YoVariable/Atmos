@@ -74,33 +74,58 @@ export function useLocations() {
   /** Refresh the browser's geolocation and upsert the current-location entry. */
   const refreshCurrentLocation = useCallback(
     (opts: { makeActive?: boolean } = {}) => {
-      if (!navigator.geolocation) return;
+      if (!navigator.geolocation) {
+        console.error("Geolocation is not supported by your browser.");
+        return;
+      }
+      
       setIsLocatingCurrent(true);
+      
       navigator.geolocation.getCurrentPosition(
         async (pos) => {
           try {
             const { latitude, longitude } = pos.coords;
-            const name = await reverseGeocode(latitude, longitude);
+            let locationName = 'Current Location'; // Default fallback name
+            
+            // ISOLATE THE GEOCODING API CALL
+            // If this fails due to CORS, it won't break the whole app!
+            try {
+              const fetchedName = await reverseGeocode(latitude, longitude);
+              if (fetchedName) {
+                locationName = fetchedName;
+              }
+            } catch (geocodeError) {
+              console.warn("Reverse geocoding failed, using fallback name:", geocodeError);
+            }
+
+            // This will now ALWAYS run, even if the name fetch fails
             upsertCurrentLocation({
-              name: name || 'Current Location',
+              name: locationName,
               country: '',
               latitude,
               longitude,
               timezone: 'auto',
             });
+            
             if (opts.makeActive) {
               setActiveLocationId(CURRENT_LOCATION_ID);
             }
           } catch (e) {
-            console.error(e);
+            console.error("Critical error setting current location:", e);
           } finally {
             setIsLocatingCurrent(false);
           }
         },
-        () => setIsLocatingCurrent(false),
+        (error) => {
+          // STOP SILENT FAILURES: Actually log why the GPS failed
+          console.error("GPS Request Failed:", error.message);
+          setIsLocatingCurrent(false);
+        },
+        // PRO-TIP: Force the device to get a fresh, highly accurate location
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 } 
       );
     },
-    [upsertCurrentLocation],
+    [upsertCurrentLocation], 
   );
 
   // On first load, silently try to establish the current location so it is

@@ -213,17 +213,47 @@ export async function reverseGeocode(
   latitude: number,
   longitude: number,
 ): Promise<string | null> {
-  const url = new URL('https://geocoding-api.open-meteo.com/v1/reverse');
-  url.searchParams.set('latitude', String(latitude));
-  url.searchParams.set('longitude', String(longitude));
-  url.searchParams.set('language', 'en');
-  url.searchParams.set('format', 'json');
+  try {
+    // Engine 1: BigDataCloud (Fast, keyless, CORS-enabled client-side API)
+    const url = new URL('https://api.bigdatacloud.net/data/reverse-geocode-client');
+    url.searchParams.set('latitude', String(latitude));
+    url.searchParams.set('longitude', String(longitude));
+    url.searchParams.set('localityLanguage', 'en');
 
-  const res = await fetch(url.toString());
-  if (!res.ok) return null;
-  const data = await res.json();
-  const first = data.results?.[0];
-  return first ? `${first.name}` : null;
+    const res = await fetch(url.toString());
+    if (!res.ok) throw new Error(`Primary geocoding status: ${res.status}`);
+    
+    const data = await res.json();
+    
+    // SWAP PRIORITY: 'locality' targets the exact town/suburb boundary, 
+    // while 'city' scales up to the macro metropolitan area anchor.
+    return data.locality || data.city || data.principalSubdivision || null;
+    
+  } catch (error) {
+    console.warn("Primary reverse geocoding failed, trying fallback:", error);
+    
+    // Engine 2 Fallback: OpenStreetMap Nominatim
+    try {
+      const fallbackUrl = new URL('https://nominatim.openstreetmap.org/reverse');
+      fallbackUrl.searchParams.set('format', 'jsonv2');
+      fallbackUrl.searchParams.set('lat', String(latitude));
+      fallbackUrl.searchParams.set('lon', String(longitude));
+
+      const res = await fetch(fallbackUrl.toString());
+      if (!res.ok) return null;
+      
+      const data = await res.json();
+      const addr = data.address;
+      
+      if (!addr) return null;
+      
+      // Parse from the most granular neighborhood/town layer outwards to the macro city
+      return addr.neighbourhood || addr.suburb || addr.town || addr.village || addr.city || null;
+    } catch (fallbackError) {
+      console.error("All reverse geocoding paths failed:", fallbackError);
+      return null;
+    }
+  }
 }
 
 /**
