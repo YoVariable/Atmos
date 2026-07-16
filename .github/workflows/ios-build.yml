@@ -27,14 +27,17 @@ jobs:
         run: |
           pnpm add -D typescript@5
           pnpm exec cap sync
-
-      # This is where your xcodebuild logic happens
-      - name: Build IPA
+      - name: Build Unsigned App
         run: |
-          cd ios
-          # You will need to use 'xcodebuild' with your specific scheme
-          # xcodebuild -workspace App.xcworkspace -scheme App -archivePath App.xcarchive archive
-          # xcodebuild -exportArchive -archivePath App.xcarchive -exportOptionsPlist ExportOptions.plist -exportPath .
+          # Build the App
+          xcodebuild -workspace ios/App/App.xcworkspace -scheme App -configuration Release -derivedDataPath build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
+
+      - name: Package into IPA
+        run: |
+          # Create Payload directory and zip the app
+          mkdir -p Payload
+          cp -r build/Build/Products/Release-iphoneos/App.app Payload/
+          zip -r Atmos.ipa Payload
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
