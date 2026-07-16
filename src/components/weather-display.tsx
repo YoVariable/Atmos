@@ -98,12 +98,13 @@ console.log("DEBUG:", {
   const { data: airQuality } = useAirQuality(location.latitude, location.longitude);
 
   useEffect(() => {
-    if (isActive && data?.current) {
+      if (isActive && data?.current) {
       const color = getWeatherColor(data.current.weather_code, data.current.is_day);
       const glow = document.getElementById('ambient-glow');
       if (glow) glow.style.backgroundColor = color;
     }
-  }, [data, isActive]);
+  // Only re-run if these specific values change, not the whole data object
+  }, [data?.current?.weather_code, data?.current?.is_day, isActive]);
 
   if (isLoading) {
     return (
@@ -385,7 +386,7 @@ console.log("DEBUG:", {
             <AirQualityDetailContent airQuality={airQuality} unit={(settings as any).airPollutionUnit || 'μg/m³'} />
           </DetailSheet>
         )}
-{(() => { console.log("Sunrise:", new Date(sunrise).toLocaleTimeString(), "Sunset:", new Date(sunset).toLocaleTimeString()); return null; })()}
+
     <DetailSheet 
           title="Sunrise & Sunset" 
           icon={isDay ? Sunset : Sunrise} // Dynamic header icon
