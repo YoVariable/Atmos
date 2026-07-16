@@ -1,0 +1,31 @@
+name: Build iOS IPA
+on: [push]
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: pnpm/action-setup@v3
+        with: { version: 10 }
+        
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+
+      - name: Install Dependencies
+        run: pnpm install
+
+      - name: Build Web App
+        run: pnpm run build --filter weather-app
+
+      - name: Sync Capacitor
+        run: pnpm exec cap sync
+
+      # This is where your xcodebuild logic happens
+      - name: Build IPA
+        run: |
+          cd ios
+          # You will need to use 'xcodebuild' with your specific scheme
+          # xcodebuild -workspace App.xcworkspace -scheme App -archivePath App.xcarchive archive
+          # xcodebuild -exportArchive -archivePath App.xcarchive -exportOptionsPlist ExportOptions.plist -exportPath .
