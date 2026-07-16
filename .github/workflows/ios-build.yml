@@ -24,7 +24,9 @@ jobs:
         run: pnpm run build --filter weather-app
 
       - name: Sync Capacitor
-        run: pnpm exec cap sync
+        run: |
+          pnpm add -wD typescript
+          pnpm exec cap sync
 
       # This is where your xcodebuild logic happens
       - name: Build IPA
