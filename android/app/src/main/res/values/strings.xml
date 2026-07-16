@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Atmos</string>
+    <string name="title_activity_main">Atmos</string>
+    <string name="package_name">com.yovariable.atmos</string>
+    <string name="custom_url_scheme">com.yovariable.atmos</string>
+</resources>
