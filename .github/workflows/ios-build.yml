@@ -35,3 +35,9 @@ jobs:
           # You will need to use 'xcodebuild' with your specific scheme
           # xcodebuild -workspace App.xcworkspace -scheme App -archivePath App.xcarchive archive
           # xcodebuild -exportArchive -archivePath App.xcarchive -exportOptionsPlist ExportOptions.plist -exportPath .
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Atmos-IPA
+          path: Atmos.ipa
