@@ -3,6 +3,8 @@ import { describeWeatherCode } from '@/lib/weather-api';
 import { getWeatherIcon, getWeatherColor } from '@/lib/weather-icons';
 import { getAqiBand, getAqiPosition } from '@/lib/aqi';
 import { generateNotices, generateAqiNotice, type WeatherNotice } from '@/lib/alerts';
+import { useDayNight } from '@/lib/use-day-night';
+import * as SunCalc from 'suncalc';
 import {
   formatFelsius,
   formatFelsiusValue,
@@ -59,6 +61,7 @@ const CARD_TRIGGER_CLASS =
 
 export function WeatherDisplay({ location, isActive }: WeatherDisplayProps) {
   const { settings } = useSettings();
+  // In weather-display.tsx (Around Line 63)
 
   // Add this helper function inside the component
   const getFormattedDate = (date: Date) => {
@@ -71,6 +74,27 @@ export function WeatherDisplay({ location, isActive }: WeatherDisplayProps) {
   };
 
   const { data, isLoading, error } = useWeather(location.latitude, location.longitude);
+const timezone = location.timezone === "auto" ? undefined : location.timezone;
+const cityTimeDate = new Date(new Date().toLocaleString("en-US", { timeZone: timezone }));
+const cityTime = (cityTimeDate.getHours() * 3600000) + (cityTimeDate.getMinutes() * 60000);
+
+const sunriseDate = new Date(data?.daily.sunrise[0] || 0);
+const sunriseTime = (sunriseDate.getHours() * 3600000) + (sunriseDate.getMinutes() * 60000);
+
+const sunsetDate = new Date(data?.daily.sunset[0] || 0);
+const sunsetTime = (sunsetDate.getHours() * 3600000) + (sunsetDate.getMinutes() * 60000);
+
+const isDay = cityTime > sunriseTime && cityTime < sunsetTime;
+
+// DEBUG: This will show you exactly what values are being compared in the console
+console.log("DEBUG:", { 
+  cityTime, 
+  sunriseTime, 
+  sunsetTime, 
+  isDay, 
+  timezone 
+});
+
   const { data: airQuality } = useAirQuality(location.latitude, location.longitude);
 
   useEffect(() => {
@@ -111,8 +135,11 @@ export function WeatherDisplay({ location, isActive }: WeatherDisplayProps) {
       : []),
   ];
 
+  // Ensure these variables are derived from the selected city's daily data
+  // daily properties are arrays (one entry per day), use the first day's values
   const sunrise = new Date(daily.sunrise[0]);
   const sunset = new Date(daily.sunset[0]);
+
   const todayHigh = daily.temperature_2m_max[0];
   const todayLow = daily.temperature_2m_min[0];
 
@@ -122,7 +149,7 @@ export function WeatherDisplay({ location, isActive }: WeatherDisplayProps) {
   const isSpecialSun = isPolarNight || isMidnightSun;
 
   // Rolling 24-hour window from now (floored to the start of the current hour to prevent skipping)
-  const currentHourStartMs = new Date(current.time).setMinutes(0, 0, 0, 0);
+  const currentHourStartMs = new Date(current.time).setHours(new Date(current.time).getHours(), 0, 0, 0);
   let startIdx = hourly.time.findIndex((t) => new Date(t).getTime() >= currentHourStartMs);
   if (startIdx === -1) startIdx = 0;
   const windowSize = 24;
@@ -242,11 +269,18 @@ export function WeatherDisplay({ location, isActive }: WeatherDisplayProps) {
             const timeStr = hourly.time[i];
             const hourDate = item.time;
             // Use API-provided is_day when available (hourly field added); fall back to current
-            const isHourDay = hourly.is_day ? hourly.is_day[i] : current.is_day;
-            const Icon = getWeatherIcon(hourly.weather_code[i], isHourDay);
+            // 1. Move `isNow` up so we can evaluate it first
+            const isNow = i === startIdx;
+
+            // 2. Convert the API's 1 or 0 into a strict true/false boolean
+            const apiIsDay = hourly.is_day ? hourly.is_day[i] === 1 : current.is_day === 1;
+
+            // 3. OVERRIDE: If it's "Now", use our minute-accurate hook. Otherwise, trust the API.
+            const isHourDay = isNow ? isDay : apiIsDay;
+
+            const Icon = getWeatherIcon(hourly.weather_code[i], isHourDay ? 1 : 0);
             const temp = hourly.temperature_2m[i];
             const precip = hourly.precipitation_probability[i];
-            const isNow = i === startIdx;
 
             return (
               <div key={timeStr} className="flex flex-col items-center gap-3 snap-start min-w-[3.5rem]">
@@ -351,23 +385,34 @@ export function WeatherDisplay({ location, isActive }: WeatherDisplayProps) {
             <AirQualityDetailContent airQuality={airQuality} unit={(settings as any).airPollutionUnit || 'μg/m³'} />
           </DetailSheet>
         )}
-
-        <DetailSheet title="Sunrise & Sunset" icon={Sunrise} trigger={
-          <button className={CARD_TRIGGER_CLASS}>
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-foreground/60 mb-2">
-              <Sunrise className="w-4 h-4" />
-              <span>Sunrise</span>
-            </div>
-            <div className="mt-auto pt-4 space-y-4">
-              <div className="text-3xl font-medium tracking-tight">
-                {isSpecialSun ? '>7 days' : formatTime(sunrise, settings.timeFormat)}
+{(() => { console.log("Sunrise:", new Date(sunrise).toLocaleTimeString(), "Sunset:", new Date(sunset).toLocaleTimeString()); return null; })()}
+    <DetailSheet 
+          title="Sunrise & Sunset" 
+          icon={isDay ? Sunset : Sunrise} // Dynamic header icon
+          trigger={
+            <button className={CARD_TRIGGER_CLASS}>
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-foreground/60 mb-2">
+                {/* Dynamic trigger icon */}
+                {isDay ? <Sunset className="w-4 h-4" /> : <Sunrise className="w-4 h-4" />}
+                <span>{isDay ? "Sunset" : "Sunrise"}</span>
               </div>
-              <div className="text-[15px] font-semibold text-foreground/80">
-                Sunset: {isSpecialSun ? '>7 days' : formatTime(sunset, settings.timeFormat)}
-              </div>
-            </div>
-          </button>
-        }>
+              <div className="mt-auto pt-4 space-y-4">
+    {/* Add 'relative -top-2' to nudge it up without changing document flow */}
+    <div className="text-3xl font-medium tracking-tight relative -top-1">
+      {isSpecialSun 
+      ? '>7 days' 
+      : formatTime(isDay ? sunset : sunrise, settings.timeFormat)}
+      </div>
+    <div className="text-[15px] font-semibold text-foreground/80">
+    <p className="text-sm text-foreground/60">
+      {isDay ? "Sunrise: " : "Sunset: "} 
+      {isSpecialSun ? '>7 days' : formatTime(isDay ? sunrise : sunset, settings.timeFormat)}
+    </p>
+   </div>
+ </div>
+            </button>
+          }
+        >
           <SunriseSunsetDetailContent
             current={current}
             daily={daily}
