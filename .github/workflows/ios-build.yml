@@ -27,6 +27,8 @@ jobs:
         run: |
           pnpm add -D typescript@5
           pnpm exec cap sync
+      - name: List files to find workspace
+        run: find . -name "*.xcworkspace"
       - name: Build Unsigned App
         run: |
           # Build the App
