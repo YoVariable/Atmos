@@ -1,3 +1,4 @@
+import { createContext, useContext, ReactNode, createElement } from 'react';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { GeocodeResult } from './weather-api';
 import { reverseGeocode } from './weather-api';
@@ -14,6 +15,15 @@ export interface SavedLocation extends GeocodeResult {
  * brand new entry with `Date.now()` as its id. */
 const CURRENT_LOCATION_ID = -1;
 
+// 1. Create the Context
+const LocationsContext = createContext<ReturnType<typeof useLocationsValue> | null>(null);
+
+// 2. Create the Provider that wraps the app
+export function LocationsProvider({ children }: { children: ReactNode }) {
+  const value = useLocationsValue();
+  return createElement(LocationsContext.Provider, { value }, children);
+}
+
 function sortLocations(locations: SavedLocation[]): SavedLocation[] {
   // Current location always leads the list, matching Apple Weather's convention.
   return [...locations].sort((a, b) => {
@@ -23,7 +33,14 @@ function sortLocations(locations: SavedLocation[]): SavedLocation[] {
   });
 }
 
+// 3. Create the Hook that components will use to access the context
 export function useLocations() {
+  const context = useContext(LocationsContext);
+  if (!context) throw new Error("useLocations must be used within a LocationsProvider");
+  return context;
+}
+
+export function useLocationsValue() {
   const [locations, setLocations] = useState<SavedLocation[]>([]);
   const [activeLocationId, setActiveLocationId] = useState<number | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);

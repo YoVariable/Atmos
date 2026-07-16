@@ -45,6 +45,7 @@
     "@types/node": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
+    "@types/suncalc": "^1.9.2",
     "@vitejs/plugin-react": "latest",
     "class-variance-authority": "latest",
     "clsx": "latest",
@@ -77,6 +78,7 @@
     "@capacitor/android": "^8.4.2",
     "@capacitor/cli": "^8.4.2",
     "@capacitor/core": "^8.4.2",
-    "@capacitor/ios": "^8.4.2"
+    "@capacitor/ios": "^8.4.2",
+    "suncalc": "^2.0.1"
   }
 }

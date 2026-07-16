@@ -4,6 +4,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import Home from '@/pages/Home';
 import { Route, Switch, Router as WouterRouter } from 'wouter';
 import { SettingsProvider } from '@/lib/use-settings';
+import { LocationsProvider } from '@/lib/use-locations';
 
 const queryClient = new QueryClient();
 
@@ -31,14 +32,16 @@ function Router() {
 function App() {
   return (
     <SettingsProvider>
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
-            <Router />
-          </WouterRouter>
-          <Toaster />
-        </TooltipProvider>
-      </QueryClientProvider>
+      <LocationsProvider> 
+        <QueryClientProvider client={queryClient}>
+          <TooltipProvider>
+            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
+              <Router />
+            </WouterRouter>
+            <Toaster />
+          </TooltipProvider>
+        </QueryClientProvider>
+      </LocationsProvider>
     </SettingsProvider>
   );
 }
