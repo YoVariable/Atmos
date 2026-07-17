@@ -9,6 +9,7 @@ import {
   CloudRain,
   CloudSnow,
   CloudLightning,
+  Snowflake, // <-- Add this line right here!
   type LucideIcon
 } from 'lucide-react';
 
@@ -18,10 +19,10 @@ export function getWeatherIcon(code: number, isDay: number): LucideIcon {
   if (code === 3) return Cloud;
   if (code === 45 || code === 48) return CloudFog;
   if (code >= 51 && code <= 57) return CloudDrizzle;
-  if (code >= 61 && code <= 67) return CloudRain;
-  if (code >= 71 && code <= 77) return CloudSnow;
-  if (code >= 80 && code <= 82) return CloudRain;
-  if (code >= 85 && code <= 86) return CloudSnow;
+  if (code >= 61 && code <= 65) return CloudRain; // Normal rain stops at 65
+  if (code === 66 || code === 67 || (code >= 71 && code <= 77)) return Snowflake; // Freezing rain & Snow
+  if (code >= 80 && code <= 82) return CloudRain; // Rain showers
+  if (code >= 85 && code <= 86) return Snowflake; // Snow showers
   if (code >= 95 && code <= 99) return CloudLightning;
   return isDay ? Sun : Moon;
 }

@@ -140,6 +140,8 @@ console.log("DEBUG:", {
   // daily properties are arrays (one entry per day), use the first day's values
   const sunrise = new Date(daily.sunrise[0]);
   const sunset = new Date(daily.sunset[0]);
+  // Insert this on line 143:
+  const currentCityTime = new Date(current.time).getTime();
 
   const todayHigh = daily.temperature_2m_max[0];
   const todayLow = daily.temperature_2m_min[0];
@@ -170,11 +172,16 @@ console.log("DEBUG:", {
     const windowEnd = new Date(hourly.time[endIdx - 1]).getTime();
     daily.sunrise.forEach((s) => {
       const t = new Date(s).getTime();
-      if (t >= windowStart && t <= windowEnd) timeline.push({ kind: 'sun', time: new Date(s), event: 'sunrise' });
+      if (t >= windowStart && t <= windowEnd && t > currentCityTime) {
+        timeline.push({ kind: 'sun', time: new Date(s), event: 'sunrise' });
+      }
     });
+
     daily.sunset.forEach((s) => {
       const t = new Date(s).getTime();
-      if (t >= windowStart && t <= windowEnd) timeline.push({ kind: 'sun', time: new Date(s), event: 'sunset' });
+      if (t >= windowStart && t <= windowEnd && t > currentCityTime) {
+        timeline.push({ kind: 'sun', time: new Date(s), event: 'sunset' });
+      }
     });
   }
   timeline.sort((a, b) => a.time.getTime() - b.time.getTime());
@@ -311,7 +318,7 @@ console.log("DEBUG:", {
           {daily.time.map((timeStr, i) => {
             const date = parseLocalDateString(timeStr);
             const dayName = i === 0 ? 'Today' : date.toLocaleDateString('en-GB', { weekday: 'short' });
-            const Icon = getWeatherIcon(daily.weather_code[i], 1);
+            const Icon = getWeatherIcon(daily.weather_code[i], i === 0 ? current.is_day : 1);
             const high = daily.temperature_2m_max[i];
             const low = daily.temperature_2m_min[i];
             const precip = daily.precipitation_probability_max[i];
