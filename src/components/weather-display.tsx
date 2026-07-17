@@ -38,7 +38,7 @@ import {
   Cloud,
 } from 'lucide-react';
 import type { SavedLocation } from '@/lib/use-locations';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { DetailSheet } from '@/components/details/detail-sheet';
 import { AirQualityDetailContent } from '@/components/details/air-quality-detail';
 import { SunriseSunsetDetailContent } from '@/components/details/sunrise-sunset-detail';
@@ -62,6 +62,8 @@ const CARD_TRIGGER_CLASS =
 export function WeatherDisplay({ location, isActive }: WeatherDisplayProps) {
   const { settings } = useSettings();
   // In weather-display.tsx (Around Line 63)
+  const [showSettings, setShowSettings] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
 
   // Add this helper function inside the component
   const getFormattedDate = (date: Date) => {

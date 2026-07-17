@@ -109,70 +109,77 @@ export async function searchCities(query: string): Promise<GeocodeResult[]> {
   );
 }
 
-export async function getForecast(
-  latitude: number,
-  longitude: number,
-): Promise<ForecastResponse> {
-  const url = new URL('https://api.open-meteo.com/v1/forecast');
-  url.searchParams.set('latitude', String(latitude));
-  url.searchParams.set('longitude', String(longitude));
-  url.searchParams.set(
-    'current',
-    [
-      'temperature_2m',
-      'apparent_temperature',
-      'relative_humidity_2m',
-      'dew_point_2m',
-      'precipitation',
-      'weather_code',
-      'wind_speed_10m',
-      'wind_gusts_10m',
-      'wind_direction_10m',
-      'pressure_msl',
-      'visibility',
-      'is_day',
-    ].join(','),
-  );
-  url.searchParams.set(
-    'hourly',
-    [
-      'temperature_2m',
-      'apparent_temperature',
-      'precipitation_probability',
-      'weather_code',
-      'is_day',
-      'wind_speed_10m',
-      'wind_gusts_10m',
-      'pressure_msl',
-      'relative_humidity_2m',
-      'dew_point_2m',
-      'visibility',
-    ].join(','),
-  );
-  url.searchParams.set(
-    'daily',
-    [
-      'temperature_2m_max',
-      'temperature_2m_min',
-      'precipitation_probability_max',
-      'weather_code',
-      'wind_speed_10m_max',
-      'sunrise',
-      'sunset',
-      'daylight_duration',
-    ].join(','),
-  );
-  url.searchParams.set('timezone', 'auto');
-  url.searchParams.set('wind_speed_unit', 'kmh');
-  url.searchParams.set('precipitation_unit', 'mm');
-  url.searchParams.set('temperature_unit', 'celsius');
-  url.searchParams.set('forecast_days', '7');
-  url.searchParams.set('past_hours', '6');
+    const CACHE_TTL = 15 * 60 * 1000; // 15-minute cache
 
-  const res = await fetch(url.toString());
-  if (!res.ok) throw new Error('Failed to fetch forecast');
-  return res.json();
-}
+    export async function getForecast(
+      latitude: number,
+      longitude: number,
+    ): Promise<ForecastResponse> {
+      const cacheKey = `atmos_forecast_${latitude.toFixed(3)}_${longitude.toFixed(3)}`;
+
+      // 1. Try to return cached data if fresh
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        const { timestamp, data } = JSON.parse(cached);
+        if (Date.now() - timestamp < CACHE_TTL) {
+          return data;
+        }
+      }
+
+      // 2. Build your original core URL logic
+      const url = new URL('https://api.open-meteo.com/v1/forecast');
+      url.searchParams.set('latitude', String(latitude));
+      url.searchParams.set('longitude', String(longitude));
+      url.searchParams.set(
+        'current',
+        [
+          'temperature_2m', 'apparent_temperature', 'relative_humidity_2m',
+          'dew_point_2m', 'precipitation', 'weather_code', 'wind_speed_10m',
+          'wind_gusts_10m', 'wind_direction_10m', 'pressure_msl',
+          'visibility', 'is_day',
+        ].join(','),
+      );
+      url.searchParams.set(
+        'hourly',
+        [
+          'temperature_2m', 'apparent_temperature', 'precipitation_probability',
+          'weather_code', 'is_day', 'wind_speed_10m', 'wind_gusts_10m',
+          'pressure_msl', 'relative_humidity_2m', 'dew_point_2m', 'visibility',
+        ].join(','),
+      );
+      url.searchParams.set(
+        'daily',
+        [
+          'temperature_2m_max', 'temperature_2m_min', 'precipitation_probability_max',
+          'weather_code', 'wind_speed_10m_max', 'sunrise', 'sunset',
+          'daylight_duration',
+        ].join(','),
+      );
+      url.searchParams.set('timezone', 'auto');
+      url.searchParams.set('wind_speed_unit', 'kmh');
+      url.searchParams.set('precipitation_unit', 'mm');
+      url.searchParams.set('temperature_unit', 'celsius');
+      url.searchParams.set('forecast_days', '7');
+      url.searchParams.set('past_hours', '6');
+
+      // 3. Execute fetch with 429 intercept
+      const res = await fetch(url.toString());
+
+      // Intercept 429 and return stale cache if available
+      if (res.status === 429) {
+        const stale = localStorage.getItem(cacheKey);
+        if (stale) return JSON.parse(stale).data;
+      }
+
+      if (!res.ok) throw new Error('Failed to fetch forecast');
+
+      const data = await res.json();
+
+      // 4. Save to cache before returning
+      localStorage.setItem(cacheKey, JSON.stringify({ timestamp: Date.now(), data }));
+
+      return data;
+    }
 
 /** Current air quality (US AQI, 0-500 scale) for a location. Open-Meteo Air Quality API. */
 export async function getAirQuality(latitude: number, longitude: number): Promise<AirQuality> {

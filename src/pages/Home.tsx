@@ -1,6 +1,7 @@
 import { useLocations } from '@/lib/use-locations';
 import { LocationManager } from '@/components/location-manager';
 import { SettingsManager } from '@/components/settings-manager';
+import { InfoManager } from '@/components/info-manager';
 import { WeatherDisplay } from '@/components/weather-display';
 import { LocationSearch } from '@/components/location-search';
 import { Compass, Navigation } from 'lucide-react';
@@ -68,6 +69,9 @@ export default function Home() {
             <div className="flex-1 flex items-center gap-2 relative z-10">
               <Compass className="w-5 h-5 text-foreground/80" />
               <SettingsManager />
+              <div className="-ml-2">
+              <InfoManager />
+              </div>
             </div>
 
             <div className="flex items-center justify-center gap-2.5 flex-1 relative z-10">
