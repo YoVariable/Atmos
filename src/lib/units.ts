@@ -81,7 +81,7 @@ export const DISTANCE_UNIT_OPTIONS: { value: DistanceUnit; label: string; exampl
 
 /** API visibility is in metres. */
 export function formatVisibility(meters: number, unit: DistanceUnit = 'km'): string {
-  if (unit === 'mi') return `${(meters / 1609.34).toFixed(1)} mi`;
+  if (unit === 'mi') return `${(meters / 1609.344).toFixed(1)} mi`;
   return `${(meters / 1000).toFixed(1)} km`;
 }
 

@@ -5,6 +5,9 @@ import { getAqiBand, getAqiPosition } from '@/lib/aqi';
 import { generateNotices, generateAqiNotice, type WeatherNotice } from '@/lib/alerts';
 import { useDayNight } from '@/lib/use-day-night';
 import * as SunCalc from 'suncalc';
+import { UVIndexDetailContent } from '@/components/uv-index-detail-content';
+import { Sun } from 'lucide-react';
+import { getUvCategory } from "@/lib/utils";
 import {
   formatFelsius,
   formatFelsiusValue,
@@ -64,6 +67,24 @@ export function WeatherDisplay({ location, isActive }: WeatherDisplayProps) {
   // In weather-display.tsx (Around Line 63)
   const [showSettings, setShowSettings] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
+  const { data: airQualityData } = useAirQuality(location.latitude, location.longitude);
+  console.log("Air Quality Data in Parent:", airQualityData);
+
+    // 1. Get the current hour (0-23) in the target timezone
+  const currentHour = new Intl.DateTimeFormat('en-US', {
+    timeZone: airQualityData?.timezone,
+    hour: 'numeric',
+    hourCycle: 'h23',
+  }).format(new Date());
+
+  // 2. Find the index in your hourly data that matches this hour
+  // (Assumes your hourly.time array is in ISO format like '2026-07-17T14:00')
+  const nowIndex = airQualityData?.hourly?.time?.findIndex(
+    (t) => parseInt(t.split('T')[1].split(':')[0]) === parseInt(currentHour)
+  ) ?? 0;
+
+  // 3. Extract the actual UV value for right now
+  const currentUvValue = airQualityData?.hourly?.uv_index?.[nowIndex] ?? 0;
 
   // Add this helper function inside the component
   const getFormattedDate = (date: Date) => {
@@ -472,16 +493,57 @@ console.log("DEBUG:", {
           <FeelsLikeDetailContent current={current} />
         </DetailSheet>
 
+<DetailSheet 
+  title="UV Index" 
+  icon={Sun} 
+  trigger={
+    <button className={CARD_TRIGGER_CLASS}>
+      {/* Header */}
+      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-foreground/60 mb-2">
+        <Sun className="w-4 h-4" />
+        <span>UV Index</span>
+      </div>
+
+      {/* Main Content */}
+      <div className="mt-auto pt-4">
+        <div className="text-3xl font-medium tracking-tight font-mono">
+          {Math.round(currentUvValue)}
+        </div>
+        <div className="text-sm text-foreground/70 font-medium mt-1">
+          {getUvCategory(currentUvValue)}
+        </div>
+      </div>
+      
+      {/* Gradient Bar with Marker */}
+      <div className="relative w-full h-1.5 rounded-full mt-4 bg-gradient-to-r from-green-400 via-yellow-400 to-purple-500 opacity-80">
+        <div 
+          className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-[0_0_4px_rgba(0,0,0,0.3)] border-2 border-white/50"
+          style={{ left: `${Math.min((currentUvValue / 11) * 100, 100)}%` }}
+        />
+      </div>
+    </button>
+  }
+>
+  <UVIndexDetailContent 
+    hourly={airQualityData?.hourly} 
+    initialDayIndex={0} 
+    timezone={airQualityData?.timezone} 
+  />
+</DetailSheet>
+
         <DetailSheet title="Humidity" icon={Droplets} trigger={
-          <button className={CARD_TRIGGER_CLASS}>
+          <button className={`${CARD_TRIGGER_CLASS} justify-start gap-4 pb-4`}>
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-foreground/60 mb-2">
               <Droplets className="w-4 h-4" />
               <span>Humidity</span>
             </div>
-            <div className="mt-auto pt-4">
+            <div className="mt-0">
               <div className="text-3xl font-medium tracking-tight font-mono">
                 {formatHumidity(current.relative_humidity_2m)}
               </div>
+                <div className="text-sm text-foreground/60 mt-5 font-semibold">
+                  Dew Point: {formatFelsius(current.dew_point_2m)}
+                </div>
             </div>
           </button>
         }>

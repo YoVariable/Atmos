@@ -52,8 +52,17 @@ export function AirQualityDetailContent({
               <div className="text-lg font-medium font-mono">
                 {typeof value === 'number' 
                   ? unit === 'gr/ft³' 
-                    ? (value * 0.000000437).toExponential(2)
-                    : Math.round(value) 
+                  ? (() => {
+                      const scientific = (value * 0.000000436996).toExponential(2).split('e');
+                      const mantissa = scientific[0];
+                      const exponent = parseInt(scientific[1]);
+                      return (
+                        <>
+                          {mantissa} &times; 10<sup className="text-[0.6em]">{exponent}</sup>
+                        </>
+                      );
+                    })()
+                  : Math.round(value)
                   : '--'}
                 <span className="text-xs font-sans font-semibold text-foreground/50 ml-1">
                   {unit}

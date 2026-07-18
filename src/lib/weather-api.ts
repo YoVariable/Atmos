@@ -29,6 +29,7 @@ export interface CurrentWeather {
   pressure_msl: number; // hPa
   visibility: number; // meters
   is_day: number; // 0 | 1
+  uv_index?: number;
 }
 
 export interface HourlyForecast {
@@ -44,6 +45,7 @@ export interface HourlyForecast {
   relative_humidity_2m: number[]; // %
   dew_point_2m: number[]; // Celsius
   visibility: number[]; // meters
+  uv_index: number[]; // Add this line
 }
 
 export interface DailyForecast {
@@ -56,6 +58,7 @@ export interface DailyForecast {
   sunrise: string[]; // ISO, local to the location's timezone
   sunset: string[]; // ISO, local to the location's timezone
   daylight_duration: number[]; // seconds
+  uv_index_max: number[]; // 0-11 scale
 }
 
 export interface ForecastResponse {
@@ -75,6 +78,11 @@ export interface AirQuality {
   nitrogen_dioxide: number; // ug/m3
   sulphur_dioxide: number; // ug/m3
   carbon_monoxide: number; // ug/m3
+  timezone: string; // Add this
+  hourly?: {
+    time: string[];    // Array of strings
+    uv_index: number[];
+  };
 }
 
 export async function searchCities(query: string): Promise<GeocodeResult[]> {
@@ -152,7 +160,8 @@ export async function searchCities(query: string): Promise<GeocodeResult[]> {
         [
           'temperature_2m_max', 'temperature_2m_min', 'precipitation_probability_max',
           'weather_code', 'wind_speed_10m_max', 'sunrise', 'sunset',
-          'daylight_duration',
+          'daylight_duration', 
+          'uv_index_max' // Add this line
         ].join(','),
       );
       url.searchParams.set('timezone', 'auto');
@@ -199,6 +208,7 @@ export async function getAirQuality(latitude: number, longitude: number): Promis
     ].join(','),
   );
   url.searchParams.set('timezone', 'auto');
+  url.searchParams.set('hourly', 'uv_index'); // Add this to request the time-series data
 
   const res = await fetch(url.toString());
   if (!res.ok) throw new Error('Failed to fetch air quality');
@@ -212,6 +222,8 @@ export async function getAirQuality(latitude: number, longitude: number): Promis
     nitrogen_dioxide: data.current.nitrogen_dioxide,
     sulphur_dioxide: data.current.sulphur_dioxide,
     carbon_monoxide: data.current.carbon_monoxide,
+    hourly: data.hourly,
+    timezone: data.timezone, // Ensure this matches your expected structure
   };
 }
 
