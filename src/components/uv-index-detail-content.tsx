@@ -25,14 +25,14 @@ function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
     return null;
   }
 
-  // Format the label based on user settings if necessary
-  const hourForLabel = typeof label === 'number'
-    ? label
-    : (typeof label === 'string' && /^\d+$/.test(label) ? parseInt(label, 10) : 0);
+  // Format the label based on user settings
+    const hourForLabel = typeof label === 'number'
+      ? label
+      : (typeof label === 'string' && /^\d+$/.test(label) ? parseInt(label, 10) : 0);
 
-  const displayLabel = timeFormat === '12h'
-    ? new Date(2026, 0, 1, hourForLabel).toLocaleTimeString('en-US', { hour: 'numeric', hour12: true })
-    : `${hourForLabel}:00`;
+    const displayLabel = timeFormat === '12h'
+      ? new Date(2026, 0, 1, hourForLabel).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+      : `${hourForLabel.toString().padStart(2, '0')}:00`;
 
     return (
         // Updated 'rounded-md' for slightly more rounded edges
@@ -165,11 +165,21 @@ console.log("uvWindow value for day:", initialDayIndex, "is:", uvWindow);
               tick={{ fontSize: 10, fill: '#888' }} 
               axisLine={false} 
               tickLine={false}
-              tickFormatter={(hour: number) => {
-                  const date = new Date();
-                  date.setHours(hour, 0, 0, 0);
-                  return formatHourLabel(date, timeFormat);
-              }}
+            // Inside uv-index-detail-content.tsx
+            tickFormatter={(hour: number) => {
+              // Use settings timeFormat from outer scope
+              const is24Hour = timeFormat === '24h';
+              
+              if (is24Hour) {
+                // Force leading zero and minutes for 24h
+                return hour.toString().padStart(2, '0') + ':00';
+              } else {
+                // Force 12h format with minutes
+                const ampm = hour >= 12 ? 'PM' : 'AM';
+                const displayHour = hour % 12 || 12;
+                return `${displayHour}:00 ${ampm}`;
+              }
+            }}
             />
             <YAxis domain={[0, 12]} tick={{ fontSize: 10, fill: '#888' }} axisLine={false} tickLine={false} tickCount={4} />
             <Area type="monotone" dataKey="value" stroke="#f97316" fill="url(#uvGradient)" strokeWidth={2} />
