@@ -233,45 +233,42 @@ export async function reverseGeocode(
   longitude: number,
 ): Promise<string | null> {
   try {
-    // Engine 1: BigDataCloud (Fast, keyless, CORS-enabled client-side API)
-    const url = new URL('https://api.bigdatacloud.net/data/reverse-geocode-client');
-    url.searchParams.set('latitude', String(latitude));
-    url.searchParams.set('longitude', String(longitude));
-    url.searchParams.set('localityLanguage', 'en');
-
+    // Engine 1: OpenStreetMap Nominatim (Prioritized for hyper-local accuracy like Rosemead)
+    const url = new URL('https://nominatim.openstreetmap.org/reverse');
+    url.searchParams.set('format', 'jsonv2');
+    url.searchParams.set('lat', String(latitude));
+    url.searchParams.set('lon', String(longitude));
+    
     const res = await fetch(url.toString());
-    if (!res.ok) throw new Error(`Primary geocoding status: ${res.status}`);
+    if (res.ok) {
+        const data = await res.json();
+        const addr = data.address;
+        
+        if (addr) {
+            // Parse from the most granular neighborhood/town layer outwards
+            const localCity = addr.neighbourhood || addr.suburb || addr.town || addr.village || addr.city;
+            if (localCity) return localCity;
+        }
+    }
+  } catch (error) {
+    console.warn("Nominatim geocoding failed, trying fallback:", error);
+  }
+
+  // Engine 2 Fallback: BigDataCloud (If Nominatim hits a rate limit)
+  try {
+    const fallbackUrl = new URL('https://api.bigdatacloud.net/data/reverse-geocode-client');
+    fallbackUrl.searchParams.set('latitude', String(latitude));
+    fallbackUrl.searchParams.set('longitude', String(longitude));
+    fallbackUrl.searchParams.set('localityLanguage', 'en');
+    
+    const res = await fetch(fallbackUrl.toString());
+    if (!res.ok) return null;
     
     const data = await res.json();
-    
-    // SWAP PRIORITY: 'locality' targets the exact town/suburb boundary, 
-    // while 'city' scales up to the macro metropolitan area anchor.
     return data.locality || data.city || data.principalSubdivision || null;
-    
-  } catch (error) {
-    console.warn("Primary reverse geocoding failed, trying fallback:", error);
-    
-    // Engine 2 Fallback: OpenStreetMap Nominatim
-    try {
-      const fallbackUrl = new URL('https://nominatim.openstreetmap.org/reverse');
-      fallbackUrl.searchParams.set('format', 'jsonv2');
-      fallbackUrl.searchParams.set('lat', String(latitude));
-      fallbackUrl.searchParams.set('lon', String(longitude));
-
-      const res = await fetch(fallbackUrl.toString());
-      if (!res.ok) return null;
-      
-      const data = await res.json();
-      const addr = data.address;
-      
-      if (!addr) return null;
-      
-      // Parse from the most granular neighborhood/town layer outwards to the macro city
-      return addr.neighbourhood || addr.suburb || addr.town || addr.village || addr.city || null;
-    } catch (fallbackError) {
-      console.error("All reverse geocoding paths failed:", fallbackError);
-      return null;
-    }
+  } catch (fallbackError) {
+    console.error("All reverse geocoding paths failed:", fallbackError);
+    return null;
   }
 }
 

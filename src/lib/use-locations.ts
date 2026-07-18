@@ -106,12 +106,12 @@ export function useLocationsValue() {
       // Default fallback now shows coordinates so we know if the API failed completely
       let locationName = `API Blocked: ${latitude.toFixed(2)}, ${longitude.toFixed(2)}`; 
 
-      // 2. ISOLATE THE GEOCODING API CALL 
+// 2. ISOLATE THE GEOCODING API CALL 
       try {
         const fetchedName = await reverseGeocode(latitude, longitude);
         if (fetchedName) {
-          // Temporarily attach coordinates to the successful name so we can verify the GPS
-          locationName = `${fetchedName} (${latitude.toFixed(2)}, ${longitude.toFixed(2)})`;
+          // Back to a clean name without the coordinates appended!
+          locationName = fetchedName;
         }
       } catch (geocodeError) {
         console.warn("Reverse geocoding failed", geocodeError);
