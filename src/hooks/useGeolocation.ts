@@ -1,43 +1,39 @@
 import { useState } from 'react';
+import { Geolocation } from '@capacitor/geolocation'; // Import Capacitor Geolocation
 
 export const useGeolocation = () => {
-  const [location, setLocation] = useState({ latitude: null, longitude: null });
+  const [location, setLocation] = useState({ latitude: null as number | null, longitude: null as number | null });
   const [error, setError] = useState<string | null>(null);
-  
-  // 1. Set initial loading state to false
-  const [loading, setLoading] = useState(false); 
+  const [loading, setLoading] = useState(false);
 
-  const fetchLocation = () => {
+  const fetchLocation = async () => { // Make this async
     setLoading(true);
     setError(null);
 
-    if (!navigator.geolocation) {
-      setError('Geolocation is not supported by your browser.');
+    try {
+      // 1. Explicitly request permissions (triggers your new Info.plist strings)
+      const permStatus = await Geolocation.requestPermissions();
+      
+      if (permStatus.location !== 'granted') {
+        throw new Error('Location permission denied.');
+      }
+
+      // 2. Fetch position using Capacitor
+      const position = await Geolocation.getCurrentPosition({
+        enableHighAccuracy: true,
+        timeout: 10000,
+      });
+
+      setLocation({
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+      });
+    } catch (err: any) {
+      setError(err.message || 'Failed to get location.');
+    } finally {
       setLoading(false);
-      return;
     }
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setLocation({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        });
-        setLoading(false);
-      },
-      (err) => {
-        if (err.code === 1) setError("Location permission denied.");
-        else if (err.code === 2) setError("Location unavailable.");
-        else if (err.code === 3) setError("Location request timed out.");
-        else setError(err.message);
-        
-        setLoading(false);
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-    );
   };
-
-  // 2. We removed the useEffect that auto-triggered the fetch!
 
   return { location, error, loading, fetchLocation };
 };
