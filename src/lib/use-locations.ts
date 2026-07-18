@@ -2,6 +2,7 @@ import { createContext, useContext, ReactNode, createElement } from 'react';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { GeocodeResult } from './weather-api';
 import { reverseGeocode } from './weather-api';
+import { Geolocation } from '@capacitor/geolocation';
 
 export interface SavedLocation extends GeocodeResult {
   /** True for the single auto-tracked "current location" entry. */
@@ -88,61 +89,49 @@ export function useLocationsValue() {
     [],
   );
 
-  /** Refresh the browser's geolocation and upsert the current-location entry. */
   const refreshCurrentLocation = useCallback(
-    (opts: { makeActive?: boolean } = {}) => {
-      if (!navigator.geolocation) {
-        console.error("Geolocation is not supported by your browser.");
-        return;
-      }
-      
+    async (opts: { makeActive?: boolean } = {}) => {
       setIsLocatingCurrent(true);
-      
-      navigator.geolocation.getCurrentPosition(
-        async (pos) => {
-          try {
-            const { latitude, longitude } = pos.coords;
-            let locationName = 'Current Location'; // Default fallback name
-            
-            // ISOLATE THE GEOCODING API CALL
-            // If this fails due to CORS, it won't break the whole app!
-            try {
-              const fetchedName = await reverseGeocode(latitude, longitude);
-              if (fetchedName) {
-                locationName = fetchedName;
-              }
-            } catch (geocodeError) {
-              console.warn("Reverse geocoding failed, using fallback name:", geocodeError);
-            }
 
-            // This will now ALWAYS run, even if the name fetch fails
-            upsertCurrentLocation({
-              name: locationName,
-              country: '',
-              latitude,
-              longitude,
-              timezone: 'auto',
-            });
-            
-            if (opts.makeActive) {
-              setActiveLocationId(CURRENT_LOCATION_ID);
-            }
-          } catch (e) {
-            console.error("Critical error setting current location:", e);
-          } finally {
-            setIsLocatingCurrent(false);
+      try {
+        // 1. Get the highly accurate native position
+        const position = await Geolocation.getCurrentPosition({
+          enableHighAccuracy: true,
+          timeout: 10000,
+        });
+
+        const { latitude, longitude } = position.coords;
+        let locationName = 'Current Location'; // Default fallback name
+
+        // 2. ISOLATE THE GEOCODING API CALL (Your hyper-local fix!)
+        try {
+          const fetchedName = await reverseGeocode(latitude, longitude);
+          if (fetchedName) {
+            locationName = fetchedName;
           }
-        },
-        (error) => {
-          // STOP SILENT FAILURES: Actually log why the GPS failed
-          console.error("GPS Request Failed:", error.message);
-          setIsLocatingCurrent(false);
-        },
-        // PRO-TIP: Force the device to get a fresh, highly accurate location
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 } 
-      );
+        } catch (geocodeError) {
+          console.warn("Reverse geocoding failed, using fallback name:", geocodeError);
+        }
+
+        // 3. Update your app state
+        upsertCurrentLocation({
+          name: locationName,
+          country: '',
+          latitude,
+          longitude,
+          timezone: 'auto',
+        });
+
+        if (opts.makeActive) {
+          setActiveLocationId(CURRENT_LOCATION_ID);
+        }
+      } catch (error: any) {
+        console.error("Critical error setting current location:", error.message);
+      } finally {
+        setIsLocatingCurrent(false);
+      }
     },
-    [upsertCurrentLocation], 
+    [upsertCurrentLocation, setActiveLocationId] // Leave your existing dependencies here if there are others!
   );
 
   // On first load, silently try to establish the current location so it is
