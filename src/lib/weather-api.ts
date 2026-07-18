@@ -246,7 +246,7 @@ export async function reverseGeocode(
         
         if (addr) {
             // Parse from the most granular neighborhood/town layer outwards
-            const localCity = addr.neighbourhood || addr.suburb || addr.town || addr.village || addr.city;
+            const localCity = addr.city || addr.town || addr.village || addr.suburb || addr.neighbourhood;
             if (localCity) return localCity;
         }
     }
