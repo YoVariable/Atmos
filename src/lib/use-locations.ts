@@ -95,23 +95,27 @@ export function useLocationsValue() {
 
       try {
         // 1. Get the highly accurate native position
-        const position = await Geolocation.getCurrentPosition({
-          enableHighAccuracy: true,
-          timeout: 10000,
-        });
+// 1. Get the highly accurate native position (Added maximumAge: 0!)
+      const position = await Geolocation.getCurrentPosition({
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0 
+      });
 
-        const { latitude, longitude } = position.coords;
-        let locationName = 'Current Location'; // Default fallback name
+      const { latitude, longitude } = position.coords;
+      // Default fallback now shows coordinates so we know if the API failed completely
+      let locationName = `API Blocked: ${latitude.toFixed(2)}, ${longitude.toFixed(2)}`; 
 
-        // 2. ISOLATE THE GEOCODING API CALL (Your hyper-local fix!)
-        try {
-          const fetchedName = await reverseGeocode(latitude, longitude);
-          if (fetchedName) {
-            locationName = fetchedName;
-          }
-        } catch (geocodeError) {
-          console.warn("Reverse geocoding failed, using fallback name:", geocodeError);
+      // 2. ISOLATE THE GEOCODING API CALL 
+      try {
+        const fetchedName = await reverseGeocode(latitude, longitude);
+        if (fetchedName) {
+          // Temporarily attach coordinates to the successful name so we can verify the GPS
+          locationName = `${fetchedName} (${latitude.toFixed(2)}, ${longitude.toFixed(2)})`;
         }
+      } catch (geocodeError) {
+        console.warn("Reverse geocoding failed", geocodeError);
+      }
 
         // 3. Update your app state
         upsertCurrentLocation({
