@@ -37,6 +37,7 @@ export interface HourlyForecast {
   temperature_2m: number[]; // Celsius
   apparent_temperature: number[]; // Celsius
   precipitation_probability: number[]; // %
+  precipitation: number[]; // <-- Add this line!
   weather_code: number[];
   is_day?: number[]; // 1 = day, 0 = night (optional for backward compat with cached data)
   wind_speed_10m: number[]; // km/h
@@ -153,6 +154,7 @@ export async function searchCities(query: string): Promise<GeocodeResult[]> {
           'temperature_2m', 'apparent_temperature', 'precipitation_probability',
           'weather_code', 'is_day', 'wind_speed_10m', 'wind_gusts_10m',
           'pressure_msl', 'relative_humidity_2m', 'dew_point_2m', 'visibility',
+          'precipitation',
         ].join(','),
       );
       url.searchParams.set(

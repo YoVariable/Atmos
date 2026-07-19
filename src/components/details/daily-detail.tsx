@@ -13,7 +13,7 @@ import {
 import type { DailyForecast, HourlyForecast } from '@/lib/weather-api';
 import { getWeatherIcon } from '@/lib/weather-icons';
 import { describeWeatherCode } from '@/lib/weather-api';
-import { formatFelsius, formatFelsiusValue, FELSIUS_UNIT, formatTime } from '@/lib/units';
+import { formatFelsius, formatFelsiusValue, FELSIUS_UNIT, formatTime, formatPrecipitation } from '@/lib/units';
 import { parseLocalDateString, formatLongDate } from '@/lib/date-utils';
 import { useSettings } from '@/lib/use-settings';
 
@@ -25,6 +25,7 @@ type DayPoint = {
   actual: number;  // Felsius
   feels: number;   // Felsius
   precip: number;
+  precipAmount: number; // <-- Add this new property
 };
 
 export function DailyDetailContent({
@@ -51,11 +52,16 @@ export function DailyDetailContent({
       if (!t.startsWith(dateStr)) return;
       const hour = Number(t.slice(11, 13));
       pts.push({
-        hourLabel: hour.toString().padStart(2, '0'),
+        hourLabel: (() => {
+          const d = new Date(selectedDate);
+          d.setHours(hour, 0, 0, 0);
+          return formatTime(d, settings.timeFormat);
+        })(),
         hour,
         actual: formatFelsiusValue(hourly.temperature_2m[i]),
         feels: formatFelsiusValue(hourly.apparent_temperature[i]),
         precip: hourly.precipitation_probability[i],
+        precipAmount: hourly.precipitation[i], // <-- Add this line
       });
     });
     return pts.sort((a, b) => a.hour - b.hour);
@@ -69,6 +75,8 @@ export function DailyDetailContent({
   const lowPoint = dayHours.length
     ? dayHours.reduce((b, p) => (p[activeKey] < b[activeKey] ? p : b))
     : null;
+
+  const dailyTotal = dayHours.reduce((sum, point) => sum + point.precipAmount, 0);
 
   // Header high/low values: daily data for actual, computed from hourly for feels
   const actualHigh = daily.temperature_2m_max[selectedDay];
@@ -87,6 +95,30 @@ export function DailyDetailContent({
     const d = new Date(selectedDate);
     d.setHours(parseInt(label, 10), 0, 0, 0);
     return formatTime(d, settings.timeFormat);
+  };
+
+  // Add this right before your return statement
+  const CustomPrecipTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload as DayPoint;
+      return (
+        <div style={{
+          background: 'hsl(var(--background))',
+          border: '1px solid hsl(var(--border))',
+          borderRadius: '0.75rem',
+          padding: '12px 14px',
+        }} className="shadow-sm flex flex-col gap-1">
+          <p className="text-foreground text-[15px] mb-1">{formatTooltipTime(label)}</p>
+          <p style={{ color: 'hsl(var(--primary))' }} className="font-medium text-sm">
+            {`Chance : ${data.precip}%`}
+          </p>
+          <p style={{ color: 'hsl(210, 100%, 50%)' }} className="font-medium text-sm">
+            {`Amount : ${formatPrecipitation(data.precipAmount, settings.precipitationUnit)}`}
+          </p>
+        </div>
+      );
+    }
+    return null;
   };
 
   return (
@@ -173,7 +205,13 @@ export function DailyDetailContent({
               interval={5}
               tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
             />
-            <YAxis hide domain={['auto', 'auto']} />
+            <YAxis 
+            hide 
+            domain={[
+                (dataMin: number) => Math.floor(dataMin - 3), 
+                (dataMax: number) => Math.ceil(dataMax + 3)
+              ]} 
+            />
             <Tooltip
               formatter={(value: number, name: string) => [
                 `${value}${FELSIUS_UNIT}`,
@@ -198,6 +236,7 @@ export function DailyDetailContent({
                 fill="none"
                 dot={false}
                 isAnimationActive={false}
+                baseValue="dataMin"
               />
             )}
 
@@ -208,6 +247,7 @@ export function DailyDetailContent({
               stroke="hsl(var(--primary))"
               strokeWidth={2}
               fill={mode === 'actual' ? 'url(#dailyActualFill)' : 'url(#dailyFeelsFill)'}
+              baseValue="dataMin"
             />
 
             {highPoint && (
@@ -229,16 +269,23 @@ export function DailyDetailContent({
                 fill="hsl(var(--muted-foreground))"
                 stroke="white"
                 strokeWidth={2}
-                label={{ value: 'L', position: 'bottom', fontSize: 11, fontWeight: 700 }}
+                label={{ value: 'L', position: 'top', fontSize: 11, fontWeight: 700 }}
               />
             )}
           </AreaChart>
         </ResponsiveContainer>
       </div>
 
-      {/* Chance of precipitation */}
+      {/* Precipitation */}
       <div>
-        <div className="text-lg font-semibold mb-1">Chance of Precipitation</div>
+        <div className="flex justify-between items-center mb-1">
+          <div className="text-lg font-semibold">Precipitation</div>
+          {dailyTotal > 0 && (
+            <div className="text-sm font-semibold" style={{ color: 'hsl(210, 100%, 50%)' }}>
+              Total: {formatPrecipitation(dailyTotal, settings.precipitationUnit)}
+            </div>
+          )}
+        </div>
         <div className="text-sm text-foreground/60 mb-3">
           {selectedDate.toLocaleDateString('en-US', { weekday: 'long' })}&apos;s chance: {Math.round(precipChance)}%
         </div>
@@ -253,16 +300,12 @@ export function DailyDetailContent({
                 tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
               />
               <YAxis hide domain={[0, 100]} />
-              <Tooltip
-                formatter={(value: number) => [`${value}%`, 'Chance']}
-                labelFormatter={formatTooltipTime}
-                contentStyle={{
-                  background: 'hsl(var(--background))',
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: '0.75rem',
-                }}
-              />
-              <Bar dataKey="precip" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
+              <Tooltip 
+                content={<CustomPrecipTooltip />} 
+                cursor={{ fill: 'hsl(var(--foreground) / 0.05)' }} 
+                />
+              <Bar dataKey="precip" fill="hsl(var(--primary) / 0.67)" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="precipAmount" fill="hsl(210, 100%, 50%)" radius={[2, 2, 0, 0]} barSize={6} />
             </BarChart>
           </ResponsiveContainer>
         </div>

@@ -162,24 +162,32 @@ console.log("uvWindow value for day:", initialDayIndex, "is:", uvWindow);
               dataKey="time"
               domain={[0, 23]}
               interval={3} 
-              tick={{ fontSize: 10, fill: '#888' }} 
               axisLine={false} 
               tickLine={false}
-            // Inside uv-index-detail-content.tsx
-            tickFormatter={(hour: number) => {
-              // Use settings timeFormat from outer scope
-              const is24Hour = timeFormat === '24h';
-              
-              if (is24Hour) {
-                // Force leading zero and minutes for 24h
-                return hour.toString().padStart(2, '0') + ':00';
-              } else {
-                // Force 12h format with minutes
-                const ampm = hour >= 12 ? 'PM' : 'AM';
-                const displayHour = hour % 12 || 12;
-                return `${displayHour}:00 ${ampm}`;
-              }
-            }}
+              tick={(props: any) => {
+                const { x, y, payload } = props;
+                const is24Hour = timeFormat === '24h';
+                
+                // Calculate formatted time
+                let display;
+                if (is24Hour) {
+                  display = [payload.value.toString().padStart(2, '0') + ':00'];
+                } else {
+                  const ampm = payload.value >= 12 ? 'PM' : 'AM';
+                  const hour = payload.value % 12 || 12;
+                  display = [`${hour}:00`, ampm];
+                }
+
+                return (
+                  <g transform={`translate(${x},${y + 10})`}>
+                    {display.map((text, i) => (
+                      <text key={i} x={0} y={i * 12} textAnchor="middle" fontSize={10} fill="#888">
+                        {text}
+                      </text>
+                    ))}
+                  </g>
+                );
+              }}
             />
             <YAxis domain={[0, 12]} tick={{ fontSize: 10, fill: '#888' }} axisLine={false} tickLine={false} tickCount={4} />
             <Area type="monotone" dataKey="value" stroke="#f97316" fill="url(#uvGradient)" strokeWidth={2} />
