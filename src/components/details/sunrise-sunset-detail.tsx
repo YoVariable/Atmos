@@ -110,7 +110,7 @@ export function SunriseSunsetDetailContent({
     const next = findNextRealSunrise(daily);
     countdownLabel = next
       ? `Sunrise on ${formatShortDate(next.dateStr, settings.longDateFormat)}`
-      : 'Sunrise in >7 days';
+      : 'No sunrise today.';
   } else if (isDaytime) {
     countdownLabel = `Sets in ${formatDuration(sunset.getTime() - now.getTime())}`;
   } else if (now < sunrise) {
@@ -166,7 +166,7 @@ export function SunriseSunsetDetailContent({
 
       <div>
         <div className="text-xs font-semibold uppercase tracking-widest text-foreground/50 mb-3">
-          Monthly Daylight Average
+          Monthly Daylight Averages
         </div>
         <div className="glass-panel p-4 h-48">
           <ResponsiveContainer width="100%" height="100%">

@@ -172,6 +172,13 @@ export function useLocationsValue() {
     [activeLocationId],
   );
 
+  const updateLocations = useCallback(
+    (newLocations: SavedLocation[]) => {
+      setLocations(newLocations);
+    },
+    []
+  );
+
   const orderedLocations = sortLocations(locations);
   const activeLocation = orderedLocations.find((l) => l.id === activeLocationId) || null;
 
@@ -185,5 +192,6 @@ export function useLocationsValue() {
     refreshCurrentLocation,
     isLocatingCurrent,
     isLoaded,
+    updateLocations,
   };
 }
