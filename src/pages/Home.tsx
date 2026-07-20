@@ -12,7 +12,9 @@ export default function Home() {
     useLocations();
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const dotsContainerRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
+  const isProgrammaticScroll = useRef(false);
 
   // Sync scroll to activeLocationId when it changes externally
   useEffect(() => {
@@ -20,17 +22,35 @@ export default function Home() {
     const index = locations.findIndex(l => l.id === activeLocationId);
     if (index !== -1 && index !== activeIndex) {
       const el = scrollRef.current;
+      isProgrammaticScroll.current = true;
       el.scrollTo({
         left: index * el.clientWidth,
         behavior: 'smooth'
       });
       setActiveIndex(index);
+      setTimeout(() => {
+        isProgrammaticScroll.current = false;
+      }, 300);
     }
   }, [activeLocationId, locations, activeIndex]);
 
+  // Keep the active dot centered within the 10-dot scrolling container window
+  useEffect(() => {
+    if (dotsContainerRef.current) {
+      const activeDot = dotsContainerRef.current.querySelector('[data-active="true"]');
+      if (activeDot) {
+        activeDot.scrollIntoView({
+          behavior: 'smooth',
+          inline: 'nearest',
+          block: 'nearest',
+        });
+      }
+    }
+  }, [activeIndex]);
+
   // Handle scroll events to update active index
   const handleScroll = useCallback(() => {
-    if (!scrollRef.current) return;
+    if (!scrollRef.current || isProgrammaticScroll.current) return;
     const clientWidth = scrollRef.current.clientWidth;
     if (clientWidth === 0) return;
     
@@ -66,40 +86,66 @@ export default function Home() {
           <footer className="h-16 shrink-0 flex items-center justify-between px-6 z-20 relative">
             <div className="absolute inset-0 bg-background/80 backdrop-blur-2xl border-t border-black/[0.03] pointer-events-none" />
             
-            <div className="flex-1 flex items-center gap-2 relative z-10">
+            {/* Left side actions (Locked with shrink-0 so it never clips) */}
+            <div className="flex items-center gap-2 relative z-10 shrink-0">
               <Compass className="w-5 h-5 text-foreground/80" />
               <SettingsManager />
               <div className="-ml-2">
-              <InfoManager />
+                <InfoManager />
               </div>
             </div>
 
-            <div className="flex items-center justify-center gap-2.5 flex-1 relative z-10">
-              {locations.map((loc, i) => (
-                <div 
-                  key={loc.id}
-                  className="flex items-center justify-center transition-all duration-300"
-                >
-                  {loc.isCurrent ? (
-                    <Navigation 
-                      className={`w-3.5 h-3.5 transition-all duration-300 ${
-                        i === activeIndex ? "text-foreground fill-current" : "text-foreground/30"
-                      }`} 
-                    />
-                  ) : (
+            {/* CENTER: 10-dot window container (max-w-[210px] with smooth scrolling track) */}
+            <div className="flex items-center justify-center flex-1 relative z-10 px-4 overflow-hidden">
+              <div 
+                ref={dotsContainerRef}
+                className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1 px-2 shrink-0 scroll-smooth mx-auto max-w-[210px]"
+              >
+                {locations.map((loc, i) => {
+                  const isActive = i === activeIndex;
+                  return (
                     <div 
-                      className={`rounded-full transition-all duration-300 ${
-                        i === activeIndex 
-                          ? "w-2 h-2 bg-foreground" 
-                          : "w-1.5 h-1.5 bg-foreground/30"
-                      }`}
-                    />
-                  )}
-                </div>
-              ))}
+                      key={loc.id}
+                      data-active={isActive}
+                      onClick={() => {
+                        setActiveIndex(i);
+                        setActiveLocationId(loc.id);
+                        if (scrollRef.current) {
+                          isProgrammaticScroll.current = true;
+                          scrollRef.current.scrollTo({
+                            left: i * scrollRef.current.clientWidth,
+                            behavior: 'smooth'
+                          });
+                          setTimeout(() => {
+                            isProgrammaticScroll.current = false;
+                          }, 300);
+                        }
+                      }}
+                      className="flex items-center justify-center transition-all duration-300 cursor-pointer shrink-0 p-1"
+                    >
+                      {loc.isCurrent ? (
+                        <Navigation 
+                          className={`w-3.5 h-3.5 transition-all duration-300 ${
+                            isActive ? "text-foreground fill-current scale-110" : "text-foreground/30 hover:text-foreground/50"
+                          }`} 
+                        />
+                      ) : (
+                        <div 
+                          className={`rounded-full transition-all duration-300 ${
+                            isActive 
+                              ? "w-2 h-2 bg-foreground scale-125 shadow-sm" 
+                              : "w-1.5 h-1.5 bg-foreground/30 hover:bg-foreground/50"
+                          }`}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
-            <div className="flex-1 flex justify-end relative z-10">
+            {/* Right side Location Manager (Locked with shrink-0) */}
+            <div className="flex items-center justify-end relative z-10 shrink-0">
               <LocationManager />
             </div>
           </footer>
