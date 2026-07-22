@@ -81,6 +81,8 @@ pnpm dev
 # Build production bundle
 pnpm build
 
+```
+
 ---
 
 ## 📄 License & Acknowledgments
