@@ -42,7 +42,7 @@ The exact linear transformation equations enforced by the Atmos conversion engin
 ## ⚡ Key Technical Features & Architecture
 
 * **Unauthenticated Open-Meteo Engine:** Direct grid telemetry pipeline. Zero server-side text-smoothing, data-damping, or regional microclimate averaging.
-* **Apple First-Party Dark Aesthetic:** Frosted-glass `backdrop-filter` panel architecture, high-contrast typography, and tight grid padding.
+* **Premium Dark Glassmorphism:** Frosted-glass `backdrop-filter` panel architecture, high-contrast typography, and tight grid padding.
 * **Daylight Inversion Engine:** Custom diurnal canvas curve tracking true planetary axial tilt:
   * **Equatorial Regions:** Renders a flat horizontal 12-hour daylight equilibrium curve year-round.
   * **Antarctic Circle:** Dynamically renders Polar Night (0 hours daylight) during polar winter with an inverted graph trough valley and vice versa.
