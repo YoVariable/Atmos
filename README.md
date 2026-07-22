@@ -87,7 +87,7 @@ pnpm build
 
 ## 📄 License & Acknowledgments
 
-Distributed under the MIT License. See `LICENSE` for details.
+Distributed under the MIT License. See [LICENSE](LICENSE) for details.
 
 Atmospheric Data: [Open-Meteo API](https://open-meteo.com/)
 
