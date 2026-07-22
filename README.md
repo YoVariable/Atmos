@@ -1,4 +1,4 @@
-# 🔒 Atmos (°Ꞓ)
+# ☁️ Atmos (°Ꞓ)
 
 > **Unadulterated atmospheric thermodynamics. Universal platform equity. Zero ad bloat.**
 
@@ -34,8 +34,8 @@ The exact linear transformation equations enforced by the Atmos conversion engin
 * **Fahrenheit to Felsius:** $$\text{°Ꞓ} = \frac{1.4(\text{°F}) - 16}{1.8}$$
 
 ### Operational Identity Proof
-* **$58°\text{Ꞓ}$** maps cleanly to whole integers: **$30°\text{C}$** and **$86°\text{F}$**.
-* **$16°\text{Ꞓ}$** represents the absolute freezing anchor (**$0°\text{C}$** / **$32°\text{F}$**).
+* **58°Ꞓ** maps cleanly to whole integers: **30°C** and **86°F**.
+* **16°Ꞓ** represents the absolute freezing anchor (**0°C** / **32°F**).
 
 ---
 
@@ -47,9 +47,9 @@ The exact linear transformation equations enforced by the Atmos conversion engin
   * **Equatorial Regions:** Renders a flat horizontal 12-hour daylight equilibrium curve year-round.
   * **Antarctic Circle:** Dynamically renders Polar Night (0 hours daylight) during polar winter with an inverted graph trough valley and vice versa.
   * **Arctic Circle:** Dynamically renders Midnight Sun (24 hours daylight) during polar summer with a flat ceiling graph curve and vice versa.
-* **Negative Canvas Geometry Patch:** TypeScript-patched graph coordinate system translating negative grid height parameters seamlessly down to extreme sub-zero polar floors (e.g., $-45°\text{Ꞓ}$ to $-49°\text{Ꞓ}$).
-* **Dynamic Warning Banners:** Automatic warning overlays trigger for Extreme Heat (e.g., Death Valley spikes at $84°\text{Ꞓ}$ / $48.6°\text{C}$) and Extreme Cold.
-* **Precision Asset Swapping:** Sub-$16°\text{Ꞓ}$ parameters dynamically swap default cloud assets for a standalone red vector snowflake (`snowflake.svg`). Air quality metrics preserve numeric typography symmetry using standard $\mu\text{g/m}^3$.
+* **Negative Canvas Geometry Patch:** TypeScript-patched graph coordinate system translating negative grid height parameters seamlessly down to extreme sub-zero polar floors (e.g., -45°Ꞓ to -49°Ꞓ).
+* **Dynamic Warning Banners:** Automatic warning overlays trigger for Extreme Heat (e.g., Death Valley spikes at 84°Ꞓ / 48.6°C) and Extreme Cold.
+* **Precision Asset Swapping:** Sub-16°Ꞓ parameters dynamically swap default cloud assets for a standalone red vector snowflake (`snowflake.svg`). Air quality metrics preserve numeric typography symmetry using standard μg/m³.
 
 ---
 
@@ -80,3 +80,15 @@ pnpm dev
 
 # Build production bundle
 pnpm build
+
+---
+
+## 📄 License & Acknowledgments
+
+Distributed under the MIT License. See `LICENSE` for details.
+
+Atmospheric Data: [Open-Meteo API](https://open-meteo.com/)
+
+Hosting Edge Network: [Netlify](https://www.netlify.com/)
+
+Developer: [@YoVariable](https://github.com/YoVariable)
