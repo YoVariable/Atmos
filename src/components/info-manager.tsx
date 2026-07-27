@@ -19,7 +19,7 @@ export function InfoManager() {
         <div className="space-y-6 text-sm text-muted-foreground">
           {/* Atmos Info */}
           <div>
-            <h4 className="font-semibold text-foreground mb-1">Version 1.0.0</h4>
+            <h4 className="font-semibold text-foreground mb-1">Version 1.0.1</h4>
             <p>Atmos provides precision weather metrics for the modern enthusiast. Designed for speed, clarity, and a unique perspective on local conditions.</p>
           </div>
 
@@ -68,7 +68,7 @@ export function InfoManager() {
           <div className="pt-4 border-t border-black/5">
             <h4 className="font-semibold text-foreground mb-1">Data Attribution</h4>
             <p>
-              Weather data is powered by <a href="https://open-meteo.com/" className="underline hover:text-primary transition-colors" target="_blank" rel="noreferrer">Open-Meteo</a>. 
+              Weather data is powered by <a href="https://open-meteo.com/" className="text-primary underline underline-offset-4" target="_blank" rel="noreferrer">Open-Meteo</a>. 
               Atmos maintains full compliance with all data usage and attribution standards.
             </p>
           </div>
@@ -79,6 +79,22 @@ export function InfoManager() {
             <p>
               Atmos provides information for general use only. It is not intended for safety-critical 
               applications or emergency services. Use at your own discretion.
+            </p>
+          </div>
+
+          {/* About the Developer */}
+          <div className="pt-4 border-t border-black/5">
+            <h4 className="font-semibold text-foreground mb-1">About the Developer</h4>
+            <p className="text-sm text-muted-foreground">
+              You can check out the repository, source code, and find changelogs for any Atmos updates on this{' '}
+              <a 
+                href="https://github.com/YoVariable" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-primary underline underline-offset-4"
+              >
+                GitHub page
+              </a>.
             </p>
           </div>
         </div>

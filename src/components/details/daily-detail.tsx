@@ -91,9 +91,9 @@ export function DailyDetailContent({
   const precipChance = daily.precipitation_probability_max[selectedDay];
 
   // Formats the raw "00", "13" hour strings into 12h/24h format for the hover tooltip
-  const formatTooltipTime = (label: string) => {
+  const formatTooltipTime = (rawHour: number) => {
     const d = new Date(selectedDate);
-    d.setHours(parseInt(label, 10), 0, 0, 0);
+    d.setHours(rawHour, 0, 0, 0);
     return formatTime(d, settings.timeFormat);
   };
 
@@ -108,7 +108,7 @@ export function DailyDetailContent({
           borderRadius: '0.75rem',
           padding: '12px 14px',
         }} className="shadow-sm flex flex-col gap-1">
-          <p className="text-foreground text-[15px] mb-1">{formatTooltipTime(label)}</p>
+          <p className="text-foreground text-[15px] mb-1">{formatTooltipTime(data.hour)}</p>
           <p style={{ color: 'hsl(var(--primary))' }} className="font-medium text-sm">
             {`Chance : ${data.precip}%`}
           </p>
@@ -213,11 +213,17 @@ export function DailyDetailContent({
               ]} 
             />
             <Tooltip
-              formatter={(value: number, name: string) => [
+              formatter={(value: number, name: string): [string, string] => [
                 `${value}${FELSIUS_UNIT}`,
                 name === 'actual' ? 'Actual' : 'Feels Like',
               ]}
-              labelFormatter={formatTooltipTime}
+              labelFormatter={(label, payload) => {
+                if (payload && payload.length > 0) {
+                  const rawHour = payload[0].payload.hour;
+                  return formatTooltipTime(rawHour);
+                }
+                return label;
+              }}
               contentStyle={{
                 background: 'hsl(var(--background))',
                 border: '1px solid hsl(var(--border))',
