@@ -49,7 +49,7 @@ The exact linear transformation equations enforced by the Atmos conversion engin
   * **Arctic Circle:** Dynamically renders Midnight Sun (24 hours daylight) during polar summer with a flat ceiling graph curve and vice versa.
 * **Negative Canvas Geometry Patch:** TypeScript-patched graph coordinate system translating negative grid height parameters seamlessly down to extreme sub-zero polar floors (e.g., -45°Ꞓ to -49°Ꞓ).
 * **Dynamic Warning Banners:** Automatic warning overlays trigger for Extreme Heat (e.g., Death Valley spikes at 84°Ꞓ / 48.6°C) and Extreme Cold.
-* **Precision Asset Swapping:** Sub-16°Ꞓ parameters dynamically swap default cloud assets for a standalone red vector snowflake (`snowflake.svg`). Air quality metrics preserve numeric typography symmetry using standard μg/m³.
+* **Precision Asset Swapping:** Sub-16°Ꞓ parameters dynamically swap default cloud assets for a standalone grey vector snowflake (`snowflake.svg`). Air quality metrics preserve numeric typography symmetry using standard μg/m³.
 
 ---
 
