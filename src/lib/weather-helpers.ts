@@ -5,6 +5,8 @@
  * applied to real API values -- never fabricated numbers.
  */
 
+import { celsiusToFelsius } from './units';
+
 const COMPASS_LABELS = [
   'N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE',
   'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW',
@@ -120,11 +122,6 @@ export function getDominantDaytimeCode(
 
 // --- Felsius & Temperature Bar Formatting ---
 
-/** Converts raw Celsius degrees to Felsius (°Ꞓ = 1.4 * °C + 16) */
-export function toFelsius(celsius: number): number {
-  return 1.4 * celsius + 16;
-}
-
 export interface BarMetrics {
   leftPercent: number;
   widthPercent: number;
@@ -212,8 +209,8 @@ function interpolateColor(felsius: number): string {
  * and generates a CSS linear-gradient string anchored to absolute °Ꞓ colors.
  */
 export function getFelsiusBarGradient(lowCelsius: number, highCelsius: number): string {
-  const lowF = toFelsius(lowCelsius);
-  const highF = toFelsius(highCelsius);
+  const lowF = celsiusToFelsius(lowCelsius);
+  const highF = celsiusToFelsius(highCelsius);
 
   if (highF <= lowF) return interpolateColor(lowF);
 
