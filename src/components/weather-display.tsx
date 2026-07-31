@@ -8,6 +8,7 @@ import * as SunCalc from 'suncalc';
 import { UVIndexDetailContent } from '@/components/uv-index-detail-content';
 import { Sun } from 'lucide-react';
 import { getUvCategory } from "@/lib/utils";
+import { calculateBarMetrics, getFelsiusBarGradient } from '@/lib/weather-helpers';
 import {
   formatFelsius,
   formatFelsiusValue,
@@ -151,6 +152,9 @@ console.log("DEBUG:", {
   }
 
   const { current, hourly, daily } = data;
+
+  const globalMin = Math.min(...daily.temperature_2m_min);
+  const globalMax = Math.max(...daily.temperature_2m_max);
 
   const notices: WeatherNotice[] = [
     ...generateNotices(current, daily),
@@ -346,6 +350,16 @@ console.log("DEBUG:", {
             const low = daily.temperature_2m_min[i];
             const precip = daily.precipitation_probability_max[i];
 
+            const isToday = i === 0;
+              const { leftPercent, widthPercent, showCurrentDot, dotPercent } = calculateBarMetrics(
+                low,
+                high,
+                globalMin,
+                globalMax,
+                isToday,
+                current.temperature_2m
+              );
+
             return (
               <DetailSheet key={timeStr} title="Conditions" icon={Cloud} trigger={
                 <button className="flex items-center justify-between py-2 border-b border-black/5 last:border-0 w-full text-left active:opacity-70 transition-opacity">
@@ -358,13 +372,30 @@ console.log("DEBUG:", {
                       <span className="w-8" />
                     )}
                   </div>
-                  <div className="flex items-center justify-end gap-4 w-32">
+                  <div className="flex items-center justify-end gap-4 w-48">
                     <span className="text-[15px] font-semibold text-foreground/60 w-10 text-right">
                       {formatFelsius(low)}
                     </span>
-                    <div className="flex-1 h-1.5 rounded-full bg-black/5 overflow-hidden">
-                      <div className="h-full bg-gradient-to-r from-sky-400 to-primary/80 opacity-50 rounded-full" />
-                    </div>
+
+                    {/* --- Dynamic Temperature Bar & Indicator Dot --- */}
+                    <div className="flex-1 h-1.5 rounded-full bg-black/10 relative">
+                            <div
+                              className="absolute h-full rounded-full"
+                              style={{
+                                left: `${leftPercent}%`,
+                                width: `${widthPercent}%`,
+                                background: getFelsiusBarGradient(low, high),
+                              }}
+                            >
+                              {showCurrentDot && (
+                                <div
+                                  className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-2.5 h-2.5 rounded-full bg-white shadow-md border border-black/20 z-10"
+                                  style={{ left: `${dotPercent}%` }}
+                                />
+                              )}
+                            </div>
+                          </div>
+
                     <span className="text-[15px] font-semibold text-foreground w-10 text-right">
                       {formatFelsius(high)}
                     </span>

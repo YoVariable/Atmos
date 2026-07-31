@@ -5,6 +5,8 @@
  * before being shown anywhere in the UI.
  */
 
+import { getDominantDaytimeCode } from './weather-helpers';
+
 export interface GeocodeResult {
   id: number;
   name: string;
@@ -173,7 +175,7 @@ export async function searchCities(query: string): Promise<GeocodeResult[]> {
       url.searchParams.set('forecast_days', '7');
       url.searchParams.set('past_hours', '6');
 
-      // 3. Execute fetch with 429 intercept
+            // 3. Execute fetch with 429 intercept
       const res = await fetch(url.toString());
 
       // Intercept 429 and return stale cache if available
@@ -184,9 +186,16 @@ export async function searchCities(query: string): Promise<GeocodeResult[]> {
 
       if (!res.ok) throw new Error('Failed to fetch forecast');
 
-      const data = await res.json();
+      const data: ForecastResponse = await res.json();
 
-      // 4. Save to cache before returning
+      // Overwrite raw daily weather codes with dominant daytime codes (sunrise to sunset)
+      if (data.daily && data.hourly) {
+        data.daily.weather_code = data.daily.time.map((dateString: string) =>
+          getDominantDaytimeCode(data.hourly, data.daily, dateString)
+        );
+      }
+
+      // 4. Save transformed data to cache before returning
       localStorage.setItem(cacheKey, JSON.stringify({ timestamp: Date.now(), data }));
 
       return data;
