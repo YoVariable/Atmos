@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Navigation, MapPin, Mountain, Globe } from 'lucide-react';
 import { Geolocation } from '@capacitor/geolocation';
 import * as geomag from 'geomag';
@@ -43,12 +43,12 @@ export function CompassModal({ isOpen, onClose }: CompassModalProps) {
   const [displayHeading, setDisplayHeading] = useState<number>(0);
   const [sensorAvailable, setSensorAvailable] = useState<boolean>(true);
   const [permissionDenied, setPermissionDenied] = useState(false);
+  const [needsUserGesture, setNeedsUserGesture] = useState(false);
   
   const [locationName, setLocationName] = useState<string>("Locating...");
   const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
   const [elevation, setElevation] = useState<number | null>(null);
 
-  // Use refs to keep values fresh inside event listeners without re-triggering effects
   const coordsRef = useRef<{ lat: number; lon: number } | null>(null);
   const elevationRef = useRef<number | null>(null);
 
@@ -58,6 +58,8 @@ export function CompassModal({ isOpen, onClose }: CompassModalProps) {
   const currentHeadingRef = useRef(0);
   const targetHeadingRef = useRef(0);
   const animationFrameRef = useRef<number | null>(null);
+  const absoluteActiveRef = useRef(false);
+  const sensorFiredRef = useRef(false);
 
   function getExtendedCardinal(angle: number): string {
     const directions = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
@@ -112,7 +114,7 @@ export function CompassModal({ isOpen, onClose }: CompassModalProps) {
     };
   }, [isOpen]);
 
-  // Separate effect for fetching location data once on modal open
+  // Fetch location data once on modal open
   useEffect(() => {
     if (!isOpen) return;
 
@@ -243,107 +245,117 @@ export function CompassModal({ isOpen, onClose }: CompassModalProps) {
     fetchLocationData();
   }, [isOpen]);
 
-  // Separate effect to manage orientation sensor events safely using refs
-  useEffect(() => {
-    if (!isOpen) return;
-    let absoluteActive = false;
+  // Centralized orientation handler
+  const handleOrientation = useCallback((event: DeviceOrientationEvent & { absolute?: boolean; webkitCompassHeading?: number }) => {
+  
+    if (event.type === 'deviceorientationabsolute') {
+      absoluteActiveRef.current = true;
+    } else if (event.type === 'deviceorientation' && absoluteActiveRef.current) {
+      return;
+    }
 
-  function handleOrientation(event: DeviceOrientationEvent & { absolute?: boolean; webkitCompassHeading?: number }) {
-        if (event.type === 'deviceorientationabsolute') {
-          absoluteActive = true;
-        } else if (event.type === 'deviceorientation' && absoluteActive) {
-          return;
-        }
+    const currentCoords = coordsRef.current;
+    const currentElevation = elevationRef.current;
+    let currentHeading: number | null = null;
 
-        const currentCoords = coordsRef.current;
-        const currentElevation = elevationRef.current;
+    if (typeof event.webkitCompassHeading === 'number') {
+      const magneticHeading = event.webkitCompassHeading;
+      let declination = 0;
 
-        let currentHeading: number | null = null;
-
-        if (typeof event.webkitCompassHeading === 'number') {
-                  const magneticHeading = event.webkitCompassHeading;
-                  let declination = 0;
-
-                  if (currentCoords) {
-                    const altitudeKm = currentElevation !== null ? currentElevation / 1000 : 0;
-                    const magField = geomag.field(currentCoords.lat, currentCoords.lon, altitudeKm);
-                    declination = magField.declination;
-                  }
-
-                  currentHeading = (magneticHeading + declination + 360) % 360;
-        } else if (typeof event.alpha === 'number') {
-          const magneticHeading = event.alpha;
-          let declination = 0;
-
-          if (currentCoords) {
-            const altitudeKm = currentElevation !== null ? currentElevation / 1000 : 0;
-            const magField = geomag.field(currentCoords.lat, currentCoords.lon, altitudeKm);
-            declination = magField.declination;
-          }
-
-          currentHeading = (magneticHeading + declination + 360) % 360;
-        }
-
-        if (currentHeading !== null) {
-          // Apply low-pass smoothing to filter out sensor jitter
-          let prevTarget = targetHeadingRef.current;
-          let diff = currentHeading - prevTarget;
-          
-          // Handle 360-degree wrapping for smooth interpolation
-          diff = ((diff + 180) % 360) - 180;
-          
-          // Adjust the 0.3 weight to taste: lower = smoother/slower, higher = faster/more jittery
-          const smoothedTarget = (prevTarget + diff * 0.3 + 360) % 360;
-
-          setHeading(smoothedTarget);
-          targetHeadingRef.current = smoothedTarget;
-          setSensorAvailable(true);
-          setPermissionDenied(false);
-        }
+      if (currentCoords) {
+        const altitudeKm = currentElevation !== null ? currentElevation / 1000 : 0;
+        const magField = geomag.field(currentCoords.lat, currentCoords.lon, altitudeKm);
+        declination = magField.declination;
       }
 
-    async function startCompass() {
-      if (typeof window === 'undefined') return;
+      currentHeading = (magneticHeading + declination + 360) % 360;
+    } else if (typeof event.alpha === 'number') {
+      const magneticHeading = event.alpha;
+      let declination = 0;
 
-      if (!('DeviceOrientationEvent' in window)) {
-        setSensorAvailable(false);
-        setPermissionDenied(true);
-        return;
+      if (currentCoords) {
+        const altitudeKm = currentElevation !== null ? currentElevation / 1000 : 0;
+        const magField = geomag.field(currentCoords.lat, currentCoords.lon, altitudeKm);
+        declination = magField.declination;
       }
 
-      if (typeof (DeviceOrientationEvent as any)?.requestPermission === 'function') {
-        try {
-          const response = await (DeviceOrientationEvent as any).requestPermission();
-          if (response === 'granted') {
-            window.addEventListener('deviceorientationabsolute', handleOrientation as EventListener, true);
-            window.addEventListener('deviceorientation', handleOrientation as EventListener, true);
-          } else {
-            setSensorAvailable(false);
-            setPermissionDenied(true);
-          }
-        } catch {
+      currentHeading = (magneticHeading + declination + 360) % 360;
+    }
+
+    if (currentHeading !== null) {
+      sensorFiredRef.current = true;
+
+      let prevTarget = targetHeadingRef.current;
+      let diff = currentHeading - prevTarget;
+      
+      diff = ((diff + 180) % 360) - 180;
+      const smoothedTarget = (prevTarget + diff * 0.3 + 360) % 360;
+
+      setHeading(smoothedTarget);
+      targetHeadingRef.current = smoothedTarget;
+      setSensorAvailable(true);
+      setPermissionDenied(false);
+    }
+  }, []);
+
+  // Request permission explicitly on user interaction
+  const requestCompassPermission = async () => {
+    if (typeof (DeviceOrientationEvent as any)?.requestPermission === 'function') {
+      try {
+        const response = await (DeviceOrientationEvent as any).requestPermission();
+        if (response === 'granted') {
+          setNeedsUserGesture(false);
+          window.addEventListener('deviceorientationabsolute', handleOrientation as EventListener, true);
+          window.addEventListener('deviceorientation', handleOrientation as EventListener, true);
+        } else {
           setSensorAvailable(false);
           setPermissionDenied(true);
+          setNeedsUserGesture(false);
         }
+      } catch (error) {
+        console.error("Permission request failed.", error);
+        setSensorAvailable(false);
+        setPermissionDenied(true);
+        setNeedsUserGesture(false);
+      }
+    }
+  };
+
+  // Manage sensor event listeners on modal open
+  useEffect(() => {
+    if (!isOpen) {
+      setNeedsUserGesture(false);
+      return;
+    }
+
+    absoluteActiveRef.current = false;
+    sensorFiredRef.current = false;
+
+    if (typeof window !== 'undefined' && 'DeviceOrientationEvent' in window) {
+      if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
+        // iOS requires user interaction
+        setNeedsUserGesture(true);
       } else {
+        // Android / non-restrictive browsers auto-attach listeners
         window.addEventListener('deviceorientationabsolute', handleOrientation as EventListener, true);
         window.addEventListener('deviceorientation', handleOrientation as EventListener, true);
         
+        // Timeout check for desktop browsers lacking physical sensors
         setTimeout(() => {
-          if (heading === null) {
+          if (!sensorFiredRef.current) {
             setSensorAvailable(false);
           }
         }, 1000);
       }
+    } else {
+      setSensorAvailable(false);
     }
-
-    startCompass();
 
     return () => {
       window.removeEventListener('deviceorientationabsolute', handleOrientation as EventListener, true);
       window.removeEventListener('deviceorientation', handleOrientation as EventListener, true);
     };
-  }, [isOpen]);
+  }, [isOpen, handleOrientation]);
 
   const currentHeadingVal = heading ?? displayHeading;
   const arrowRotation = displayHeading - 45;
@@ -367,7 +379,7 @@ export function CompassModal({ isOpen, onClose }: CompassModalProps) {
         <DialogTitle className="text-xl font-bold tracking-tight mb-1">Compass</DialogTitle>
 
         <div className="flex flex-col items-center justify-center py-2">
-          <div className={`relative w-44 h-44 rounded-full border border-foreground/15 bg-black/[0.02] dark:bg-white/[0.03] flex items-center justify-center mb-6 shadow-inner transition-all duration-300 ${!sensorAvailable ? 'opacity-40 grayscale pointer-events-none' : ''}`}>
+          <div className={`relative w-44 h-44 rounded-full border border-foreground/15 bg-black/[0.02] dark:bg-white/[0.03] flex items-center justify-center mb-6 shadow-inner transition-all duration-300 ${(needsUserGesture || !sensorAvailable) ? 'opacity-40 grayscale pointer-events-none' : ''}`}>
             <span className="absolute top-2 text-xs font-bold text-foreground/50 tracking-wider">N</span>
             <span className="absolute bottom-2 text-xs font-bold text-foreground/50 tracking-wider">S</span>
             <span className="absolute left-2 text-xs font-bold text-foreground/50 tracking-wider">W</span>
@@ -381,8 +393,15 @@ export function CompassModal({ isOpen, onClose }: CompassModalProps) {
             </div>
           </div>
 
-          <div className="text-center space-y-1 mb-6">
-            {sensorAvailable ? (
+          <div className="text-center space-y-1 mb-6 flex flex-col items-center justify-center min-h-[3rem]">
+            {needsUserGesture ? (
+              <button 
+                onClick={requestCompassPermission}
+                className="px-6 py-2 bg-primary/10 hover:bg-primary/20 text-primary font-medium rounded-full transition-colors active:scale-95 text-sm border border-primary/20"
+              >
+                Tap to Allow Compass
+              </button>
+            ) : sensorAvailable ? (
               <div className="text-4xl font-bold tracking-tight">
                 {Math.round(currentHeadingVal)}° <span className="text-primary font-medium">{cardinalText}</span>
               </div>

@@ -133,3 +133,30 @@
   -ms-overflow-style: none;  /* IE and Edge */
   scrollbar-width: none;  /* Firefox */
 }
+
+/* Mobile Landscape Orientation Lock */
+@media screen and (orientation: landscape) and (max-height: 600px) {
+  #root {
+    display: none !important;
+  }
+  
+  body::before {
+    content: "Atmos is best experienced in portrait mode. Please rotate your device.";
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 2rem;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: var(--font-sans, sans-serif);
+    font-weight: 500;
+    font-size: 1.125rem;
+    z-index: 9999;
+  }
+}
