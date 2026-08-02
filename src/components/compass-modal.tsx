@@ -261,7 +261,16 @@ export function CompassModal({ isOpen, onClose }: CompassModalProps) {
         let currentHeading: number | null = null;
 
         if (typeof event.webkitCompassHeading === 'number') {
-          currentHeading = event.webkitCompassHeading;
+                  const magneticHeading = event.webkitCompassHeading;
+                  let declination = 0;
+
+                  if (currentCoords) {
+                    const altitudeKm = currentElevation !== null ? currentElevation / 1000 : 0;
+                    const magField = geomag.field(currentCoords.lat, currentCoords.lon, altitudeKm);
+                    declination = magField.declination;
+                  }
+
+                  currentHeading = (magneticHeading + declination + 360) % 360;
         } else if (typeof event.alpha === 'number') {
           const magneticHeading = event.alpha;
           let declination = 0;
