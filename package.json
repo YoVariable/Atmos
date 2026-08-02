@@ -45,8 +45,8 @@
     "@tailwindcss/vite": "latest",
     "@tanstack/react-query": "latest",
     "@types/node": "latest",
-    "@types/react": "latest",
-    "@types/react-dom": "latest",
+    "@types/react": "19.2.4",
+    "@types/react-dom": "19.2.4",
     "@types/suncalc": "^1.9.2",
     "@vitejs/plugin-react": "latest",
     "class-variance-authority": "latest",
@@ -60,9 +60,7 @@
     "lightningcss": "^1.32.0",
     "lucide-react": "latest",
     "next-themes": "^0.4.6",
-    "react": "latest",
     "react-day-picker": "^9.11.1",
-    "react-dom": "latest",
     "react-hook-form": "^7.55.0",
     "react-icons": "^5.4.0",
     "react-resizable-panels": "^2.1.7",
@@ -77,15 +75,23 @@
     "wouter": "^3.3.5",
     "zod": "latest"
   },
-  "dependencies": {
-    "@capacitor/android": "^8.4.2",
-    "@capacitor/core": "^8.4.2",
-    "@capacitor/geolocation": "^8.2.0",
-    "@capacitor/ios": "^8.4.2",
-    "@dnd-kit/core": "^6.3.1",
-    "@dnd-kit/sortable": "^10.0.0",
-    "@dnd-kit/utilities": "^3.2.2",
-    "geomag": "^1.0.0",
-    "suncalc": "^2.0.1"
-  }
+"dependencies": {
+      "@capacitor/android": "^8.4.2",
+      "@capacitor/core": "^8.4.2",
+      "@capacitor/geolocation": "^8.2.0",
+      "@capacitor/ios": "^8.4.2",
+      "@dnd-kit/core": "^6.3.1",
+      "@dnd-kit/sortable": "^10.0.0",
+      "@dnd-kit/utilities": "^3.2.2",
+      "geomag": "^1.0.0",
+      "react": "19.2.4",
+      "react-dom": "19.2.4",
+      "suncalc": "^2.0.1"
+  },
+  "resolutions": {
+      "react": "19.2.4",
+      "react-dom": "19.2.4",
+      "@types/react": "19.2.4",
+      "@types/react-dom": "19.2.4"
+    }
 }
