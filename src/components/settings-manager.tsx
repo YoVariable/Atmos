@@ -7,17 +7,17 @@ import {
   DISTANCE_UNIT_OPTIONS,
   PRESSURE_UNIT_OPTIONS,
   PRECIPITATION_UNIT_OPTIONS,
+  ELEVATION_UNIT_OPTIONS,
+  COORDINATE_FORMAT_OPTIONS,
   TIME_FORMAT_OPTIONS,
   FELSIUS_UNIT,
 } from '@/lib/units';
 import type {
-  WindUnit, DistanceUnit, PressureUnit, PrecipitationUnit, TimeFormat,
+  WindUnit, DistanceUnit, PressureUnit, PrecipitationUnit, ElevationUnit, CoordinateFormat, TimeFormat,
 } from '@/lib/units';
 import type { LongDateFormat } from '@/lib/date-utils';
 import { Settings, Check, Lock } from 'lucide-react';
 import { Dialog, DialogContent, DialogTrigger, DialogTitle } from '@/components/ui/dialog';
-
-// ─── Generic pill select (type inferred from options) ────────────────────────
 
 function PillSelect({
   options,
@@ -65,13 +65,10 @@ function SettingRow({ label, children }: { label: string; children: ReactNode })
   );
 }
 
-// ─── Main component ──────────────────────────────────────────────────────────
-
 export function SettingsManager() {
   const { settings, updateSettings } = useSettings();
   const [isOpen, setIsOpen] = useState(false);
 
-  // Force 'Day, Month, Year' to the top of the list
   const baseOptions = [...LONG_DATE_FORMAT_OPTIONS];
   const orderedDateOptions = baseOptions.sort((a, b) => {
     if (a.label === 'Day, Month, Year') return -1;
@@ -91,7 +88,7 @@ export function SettingsManager() {
       </DialogTrigger>
 
       <DialogContent className="sm:max-w-md bg-background/95 backdrop-blur-xl border-none shadow-2xl rounded-[2rem] p-6 max-h-[85vh] overflow-hidden flex flex-col">
-        <DialogTitle className="text-xl font-medium tracking-tight mb-1">Settings</DialogTitle>
+        <DialogTitle className="text-xl font-bold tracking-tight mb-1">Settings</DialogTitle>
 
         <div className="flex-1 overflow-y-auto space-y-6 pb-4 scrollbar-hide">
 
@@ -108,7 +105,6 @@ export function SettingsManager() {
           <Section title="7-Day Forecast Date Format">
             <div className="space-y-2">
               {orderedDateOptions.map((option) => {
-              // Simply check if a setting exists, otherwise default to the first option
                 const currentSetting = settings.longDateFormat || orderedDateOptions[0].value;
                 const isSelected = currentSetting === option.value;
                 return (
@@ -164,16 +160,48 @@ export function SettingsManager() {
                 onChange={(v) => updateSettings({ precipitationUnit: v as PrecipitationUnit })}
               />
             </SettingRow>
+
+            <SettingRow label="Elevation">
+              <PillSelect
+                options={ELEVATION_UNIT_OPTIONS}
+                value={settings.elevationUnit || 'm'}
+                onChange={(v) => updateSettings({ elevationUnit: v as ElevationUnit })}
+              />
+            </SettingRow>
+
+            <SettingRow label="Coordinates">
+              <PillSelect
+                options={COORDINATE_FORMAT_OPTIONS || [
+                  { value: 'dms', label: 'DMS (°) (\') (\")' },
+                  { value: 'decimal', label: 'Decimal Degrees (°)' }
+                ]}
+                value={settings.coordinateFormat || 'dms'}
+                onChange={(v) => updateSettings({ coordinateFormat: v as CoordinateFormat })}
+              />
+            </SettingRow>
             
-            {/* New Air Pollution Picker */}
-            <SettingRow label="Air Pollution">
+                        {/* Air Pollution: Gases */}
+            <SettingRow label="Air Pollution (Gases)">
+              <PillSelect
+                options={[
+                  { value: 'μg/m³', label: 'μg/m³' },
+                  { value: 'gr/ft³', label: 'gr/ft³' },
+                  { value: 'ppbv', label: 'ppbv' }
+                ]}
+                value={(settings as any).airPollutionUnit || 'μg/m³'}
+                onChange={(v) => updateSettings({ airPollutionUnit: v } as any)}
+              />
+            </SettingRow>
+
+            {/* Air Pollution: Particulate Matter */}
+            <SettingRow label="Air Pollution (Particulate Matter)">
               <PillSelect
                 options={[
                   { value: 'μg/m³', label: 'μg/m³' },
                   { value: 'gr/ft³', label: 'gr/ft³' }
                 ]}
-                value={(settings as any).airPollutionUnit || 'μg/m³'}
-                onChange={(v) => updateSettings({ airPollutionUnit: v } as any)}
+                value={(settings as any).particulatePollutionUnit || 'μg/m³'}
+                onChange={(v) => updateSettings({ particulatePollutionUnit: v } as any)}
               />
             </SettingRow>
 

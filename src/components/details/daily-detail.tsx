@@ -32,10 +32,12 @@ export function DailyDetailContent({
   daily,
   hourly,
   initialDayIndex,
+  current,
 }: {
   daily: DailyForecast;
   hourly: HourlyForecast;
   initialDayIndex: number;
+  current: any; // Replace 'any' with 'CurrentWeather' or your equivalent type if you have one defined!
 }) {
   const [selectedDay, setSelectedDay] = useState(initialDayIndex);
   const [mode, setMode] = useState<'actual' | 'feels'>('actual');
@@ -87,7 +89,21 @@ export function DailyDetailContent({
   const displayHigh = mode === 'actual' ? formatFelsius(actualHigh) : `${feelsHigh}${FELSIUS_UNIT}`;
   const displayLow = mode === 'actual' ? formatFelsius(actualLow) : `${feelsLow}${FELSIUS_UNIT}`;
 
-  const Icon = getWeatherIcon(daily.weather_code[selectedDay], 1);
+  // 1. Check if the user is looking at "Today"
+  const isToday = selectedDay === 0;
+
+  // 2. Check for midnight sun locally
+  const isMidnightSun = daily.daylight_duration[0] > 86340;
+
+  // 3. Determine if we should show day or night
+  const detailsIsDay = isToday ? (isMidnightSun ? 1 : current?.is_day ?? 1) : 1;
+
+  // 4. OVERRIDE: Use current weather code if it's today, otherwise use the daily summary
+  const displayCode = isToday ? current?.weather_code : daily.weather_code[selectedDay];
+
+  // 5. Render the icon with the overridden code
+  const Icon = getWeatherIcon(displayCode, detailsIsDay);
+
   const precipChance = daily.precipitation_probability_max[selectedDay];
 
   // Formats the raw "00", "13" hour strings into 12h/24h format for the hover tooltip
@@ -156,7 +172,7 @@ export function DailyDetailContent({
           </div>
           <div className="text-sm font-semibold text-foreground/60">
             {mode === 'actual'
-              ? `${describeWeatherCode(daily.weather_code[selectedDay])} · Felsius (${FELSIUS_UNIT})`
+              ? `${describeWeatherCode(displayCode)} · Felsius (${FELSIUS_UNIT})`
               : `Feels Like · Felsius (${FELSIUS_UNIT})`}
           </div>
         </div>

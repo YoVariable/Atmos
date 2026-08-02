@@ -1,24 +1,30 @@
-import type { AirQuality } from '@/lib/weather-api';
+import type { AirQuality, CurrentWeather } from '@/lib/weather-api';
 import { getAqiBand, getAqiPosition } from '@/lib/aqi';
+import { convertUgM3ToPpblv, GAS_MOLECULAR_WEIGHTS } from '@/lib/units';
 
-const POLLUTANTS: { key: keyof AirQuality; label: string }[] = [
+const POLLUTANTS: { key: keyof AirQuality; label: string; gasKey?: keyof typeof GAS_MOLECULAR_WEIGHTS }[] = [
   { key: 'pm2_5', label: 'PM2.5' },
   { key: 'pm10', label: 'PM10' },
-  { key: 'ozone', label: 'Ozone' },
-  { key: 'nitrogen_dioxide', label: 'NO2' },
-  { key: 'sulphur_dioxide', label: 'SO2' },
-  { key: 'carbon_monoxide', label: 'CO' },
+  { key: 'ozone', label: 'Ozone', gasKey: 'OZONE' },
+  { key: 'nitrogen_dioxide', label: 'NO2', gasKey: 'NO2' },
+  { key: 'sulphur_dioxide', label: 'SO2', gasKey: 'SO2' },
+  { key: 'carbon_monoxide', label: 'CO', gasKey: 'CO' },
 ];
 
 export function AirQualityDetailContent({ 
   airQuality, 
-  unit = 'μg/m³' 
+  current,
+  gasUnit = 'μg/m³',
+  pmUnit = 'μg/m³'
 }: { 
   airQuality: AirQuality;
-  unit?: string;
+  current: CurrentWeather;
+  gasUnit?: string;
+  pmUnit?: string;
 }) {
   const band = getAqiBand(airQuality.us_aqi);
   const position = getAqiPosition(airQuality.us_aqi);
+  const pressurePa = current.pressure_msl * 100;
 
   return (
     <div className="space-y-6">
@@ -42,30 +48,58 @@ export function AirQualityDetailContent({
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        {POLLUTANTS.map(({ key, label }) => {
-          const value = airQuality[key];
+        {POLLUTANTS.map(({ key, label, gasKey }) => {
+          const rawValue = airQuality[key];
+          const isGas = Boolean(gasKey);
+          const activeUnit = isGas ? gasUnit : pmUnit;
+
+          if (typeof rawValue !== 'number') {
+            return (
+              <div key={key} className="glass-panel p-3">
+                <div className="text-xs font-semibold uppercase tracking-widest text-foreground/50 mb-1">
+                  {label}
+                </div>
+                <div className="text-lg font-medium font-mono">
+                  --<span className="text-xs font-sans font-semibold text-foreground/50 ml-1">{activeUnit}</span>
+                </div>
+              </div>
+            );
+          }
+
+          let displayValue = rawValue;
+
+          // Convert gases to ppbv if requested
+          if (isGas && activeUnit === 'ppbv' && gasKey && GAS_MOLECULAR_WEIGHTS[gasKey]) {
+            displayValue = convertUgM3ToPpblv(
+              rawValue, 
+              GAS_MOLECULAR_WEIGHTS[gasKey], 
+              current.temperature_2m, 
+              pressurePa
+            );
+          }
+
           return (
             <div key={key} className="glass-panel p-3">
               <div className="text-xs font-semibold uppercase tracking-widest text-foreground/50 mb-1">
                 {label}
               </div>
               <div className="text-lg font-medium font-mono">
-                {typeof value === 'number' 
-                  ? unit === 'gr/ft³' 
-                  ? (() => {
-                      const scientific = (value * 0.000000436996).toExponential(2).split('e');
-                      const mantissa = scientific[0];
-                      const exponent = parseInt(scientific[1]);
-                      return (
-                        <>
-                          {mantissa} &times; 10<sup className="text-[0.6em]">{exponent}</sup>
-                        </>
-                      );
-                    })()
-                  : Math.round(value)
-                  : '--'}
+                {activeUnit === 'gr/ft³' ? (() => {
+                  // Conversion factor from ug/m3 to grains/ft³
+                  const grainsValue = rawValue * 0.000000436996;
+                  const scientific = grainsValue.toExponential(2).split('e');
+                  const mantissa = scientific[0];
+                  const exponent = parseInt(scientific[1]);
+                  return (
+                    <>
+                      {mantissa} &times; 10<sup className="text-[0.6em]">{exponent}</sup>
+                    </>
+                  );
+                })() : (
+                  Math.round(displayValue)
+                )}
                 <span className="text-xs font-sans font-semibold text-foreground/50 ml-1">
-                  {unit}
+                  {activeUnit}
                 </span>
               </div>
             </div>

@@ -5,6 +5,7 @@ import { InfoManager } from '@/components/info-manager';
 import { WeatherDisplay } from '@/components/weather-display';
 import { LocationSearch } from '@/components/location-search';
 import { Compass, Navigation } from 'lucide-react';
+import { CompassModal } from '@/components/compass-modal';
 import { useState, useRef, useEffect, useCallback } from 'react';
 
 export default function Home() {
@@ -15,6 +16,9 @@ export default function Home() {
   const dotsContainerRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const isProgrammaticScroll = useRef(false);
+  const [isCompassOpen, setIsCompassOpen] = useState(false);
+  const [heading, setHeading] = useState<number | null>(null);
+  const [sensorActive, setSensorActive] = useState(false);
 
   // Sync scroll to activeLocationId when it changes externally
   useEffect(() => {
@@ -61,6 +65,12 @@ export default function Home() {
     }
   }, [activeIndex, locations, setActiveLocationId]);
 
+  const currentLocation =
+    locations.find((loc) => loc.id === activeLocationId) ||
+    locations[activeIndex] ||
+    locations[0] ||
+    { latitude: 0, longitude: 0, name: '' };
+
   if (!isLoaded) return null;
 
   return (
@@ -86,11 +96,17 @@ export default function Home() {
           <footer className="h-16 shrink-0 flex items-center justify-between px-6 z-20 relative">
             <div className="absolute inset-0 bg-background/80 backdrop-blur-2xl border-t border-black/[0.03] pointer-events-none" />
             
-            {/* Left side actions (Locked with shrink-0 so it never clips) */}
-            <div className="flex items-center gap-2 relative z-10 shrink-0">
-              <Compass className="w-5 h-5 text-foreground/80" />
+{/* Left side actions */}
+            <div className="flex items-center gap-1 relative z-10 -ml-2.5">
+              <button 
+                onClick={() => setIsCompassOpen(true)}
+                className="p-1.5 translate-x-[3px] rounded-full hover:bg-black/5 transition-colors cursor-pointer"
+                title="Open Compass"
+              >
+                <Compass className="w-5 h-5 text-foreground/80" />
+              </button>
               <SettingsManager />
-              <div className="-ml-2">
+              <div className="-ml-1.5">
                 <InfoManager />
               </div>
             </div>
@@ -169,6 +185,11 @@ export default function Home() {
           />
         </main>
       )}
+      
+      <CompassModal 
+        isOpen={isCompassOpen} 
+        onClose={() => setIsCompassOpen(false)}
+      />
     </div>
   );
 }

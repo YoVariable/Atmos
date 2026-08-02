@@ -109,6 +109,7 @@ const sunsetDate = new Date(data?.daily.sunset[0] || 0);
 const sunsetTime = (sunsetDate.getHours() * 3600000) + (sunsetDate.getMinutes() * 60000);
 
 const isDay = cityTime > sunriseTime && cityTime < sunsetTime;
+const effectiveIsDay = isDay ? 1 : 0;
 
 // DEBUG: This will show you exactly what values are being compared in the console
 console.log("DEBUG:", { 
@@ -116,6 +117,7 @@ console.log("DEBUG:", {
   sunriseTime, 
   sunsetTime, 
   isDay, 
+  effectiveIsDay,
   timezone 
 });
 
@@ -123,12 +125,13 @@ console.log("DEBUG:", {
 
   useEffect(() => {
       if (isActive && data?.current) {
-      const color = getWeatherColor(data.current.weather_code, data.current.is_day);
+      const isMidnightSun = data.daily.daylight_duration[0] > 86340;
+      const isDayFlag = (isMidnightSun || data.current.is_day === 1) ? 1 : 0;
+      const color = getWeatherColor(data.current.weather_code, isDayFlag);
       const glow = document.getElementById('ambient-glow');
       if (glow) glow.style.backgroundColor = color;
     }
-  // Only re-run if these specific values change, not the whole data object
-  }, [data?.current?.weather_code, data?.current?.is_day, isActive]);
+  }, [data?.current?.weather_code, data?.current?.is_day, data?.daily?.daylight_duration, isActive]);
 
   if (isLoading) {
     return (
@@ -308,10 +311,10 @@ console.log("DEBUG:", {
             const isNow = i === startIdx;
 
             // 2. Convert the API's 1 or 0 into a strict true/false boolean
-            const apiIsDay = hourly.is_day ? hourly.is_day[i] === 1 : current.is_day === 1;
+            const apiIsDay = isSpecialSun || (hourly.is_day ? hourly.is_day[i] === 1 : current.is_day === 1);
 
             // 3. OVERRIDE: If it's "Now", use our minute-accurate hook. Otherwise, trust the API.
-            const isHourDay = isNow ? isDay : apiIsDay;
+            const isHourDay = isSpecialSun || (isNow ? isDay : apiIsDay);
 
             const Icon = getWeatherIcon(hourly.weather_code[i], isHourDay ? 1 : 0);
             const temp = hourly.temperature_2m[i];
@@ -345,7 +348,9 @@ console.log("DEBUG:", {
           {daily.time.map((timeStr, i) => {
             const date = parseLocalDateString(timeStr);
             const dayName = i === 0 ? 'Today' : date.toLocaleDateString('en-GB', { weekday: 'short' });
-            const Icon = getWeatherIcon(daily.weather_code[i], i === 0 ? current.is_day : 1);
+            const effectiveDayFlag = (i === 0 && isSpecialSun) ? 1 : (i === 0 ? current.is_day : 1);
+            const displayCode = i === 0 ? current.weather_code : daily.weather_code[i];
+            const Icon = getWeatherIcon(displayCode, effectiveDayFlag);
             const high = daily.temperature_2m_max[i];
             const low = daily.temperature_2m_min[i];
             const precip = daily.precipitation_probability_max[i];
@@ -402,7 +407,7 @@ console.log("DEBUG:", {
                   </div>
                 </button>
               }>
-                <DailyDetailContent daily={daily} hourly={hourly} initialDayIndex={i} />
+                <DailyDetailContent daily={daily} hourly={hourly} initialDayIndex={i} current={data.current} />
               </DetailSheet>
             );
           })}
@@ -444,7 +449,12 @@ console.log("DEBUG:", {
               })()}
             </button>
           }>
-            <AirQualityDetailContent airQuality={airQuality} unit={(settings as any).airPollutionUnit || 'μg/m³'} />
+          <AirQualityDetailContent 
+            airQuality={airQuality} 
+            current={current} 
+            gasUnit={(settings as any).airPollutionUnit ?? 'μg/m³'}
+            pmUnit={(settings as any).particulatePollutionUnit ?? 'μg/m³'} 
+          />
           </DetailSheet>
         )}
 

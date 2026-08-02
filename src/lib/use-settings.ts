@@ -14,17 +14,23 @@ import type {
   PressureUnit,
   PrecipitationUnit,
   TimeFormat,
+  CoordinateFormat,
+  ElevationUnit,
 } from './units';
 
 const STORAGE_KEY = 'weather_settings_v2';
 
 export interface WeatherSettings {
-  longDateFormat: LongDateFormat;
   timeFormat: TimeFormat;
+  longDateFormat: LongDateFormat;
   windUnit: WindUnit;
   distanceUnit: DistanceUnit;
   pressureUnit: PressureUnit;
   precipitationUnit: PrecipitationUnit;
+  elevationUnit?: ElevationUnit;
+  coordinateFormat?: CoordinateFormat;
+  airPollutionUnit?: string;
+  particulatePollutionUnit?: string;
 }
 
 const DEFAULT_SETTINGS: WeatherSettings = {
@@ -34,6 +40,10 @@ const DEFAULT_SETTINGS: WeatherSettings = {
   distanceUnit: 'km',
   pressureUnit: 'hPa',
   precipitationUnit: 'mm_cm',
+  elevationUnit: 'm',
+  coordinateFormat: 'dms',
+  airPollutionUnit: 'μg/m³',
+  particulatePollutionUnit: 'μg/m³',
 };
 
 interface SettingsContextValue {

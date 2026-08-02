@@ -14,12 +14,12 @@ export function InfoManager() {
       </DialogTrigger>
 
       <DialogContent className="sm:max-w-md bg-background/95 backdrop-blur-xl border-none shadow-2xl rounded-[2rem] p-6 flex flex-col [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-        <DialogTitle className="text-xl font-medium tracking-tight mb-4">About Atmos</DialogTitle>
+        <DialogTitle className="text-xl font-bold tracking-tight mb-1">About Atmos</DialogTitle>
         
         <div className="space-y-6 text-sm text-muted-foreground">
           {/* Atmos Info */}
           <div>
-            <h4 className="font-semibold text-foreground mb-1">Version 1.1.0</h4>
+            <h4 className="font-semibold text-foreground mb-1">Version 1.2.0</h4>
             <p>Atmos provides precision weather metrics for the modern enthusiast. Designed for speed, clarity, and a unique perspective on local conditions.</p>
           </div>
 

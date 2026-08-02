@@ -23,6 +23,49 @@ export function formatFelsiusValue(celsius: number): number {
 }
 export const FELSIUS_UNIT = '°Ꞓ';
 
+// ── Air Pollution Conversion & Constants ──
+
+// High-precision universal gas constant (SI units: J / (mol · K))
+const R_SI = 8.314462618;
+
+// High-precision molecular weights (g/mol) for Atmos gas pollutants
+export const GAS_MOLECULAR_WEIGHTS: Record<string, number> = {
+  OZONE: 47.9982, // O₃
+  NO2: 46.0055,   // Nitrogen dioxide
+  SO2: 64.0638,   // Sulfur dioxide
+  CO: 28.0101,    // Carbon monoxide
+};
+
+/**
+ * Converts Felsius to Celsius based on the custom definition:
+ * Felsius = Celsius * 1.4 + 16  =>  Celsius = (Felsius - 16) / 1.4
+ */
+export function felsiusToCelsius(felsius: number): number {
+  return (felsius - 16) / 1.4;
+}
+
+/**
+ * Converts Felsius directly to Kelvin via Celsius
+ */
+export function felsiusToKelvin(felsius: number): number {
+  const celsius = felsiusToCelsius(felsius);
+  return celsius + 273.15;
+}
+
+/**
+ * Converts gas concentration from µg/m³ to ppbv using high-precision parameters
+ * Expects temperature in Celsius, as provided natively by the weather API.
+ */
+export function convertUgM3ToPpblv(
+  μgm3: number,
+  molecularWeight: number,
+  tempCelsius: number, 
+  pressurePa: number
+): number {
+  const tempKelvin = tempCelsius + 273.15;
+  return (μgm3 * R_SI * tempKelvin * 1000) / (pressurePa * molecularWeight);
+}
+
 // ─── Wind speed ──────────────────────────────────────────────────────────────
 
 export type WindUnit = 'kmh' | 'ms' | 'mph' | 'kn' | 'bft';
@@ -167,6 +210,24 @@ export function formatHourLabel(date: Date, fmt: TimeFormat = '24h'): string {
 export function formatHumidity(percent: number): string {
   return `${Math.round(percent)}%`;
 }
+
+// ─── Elevation ───────────────────────────────────────────────────────────────
+
+export type ElevationUnit = 'm' | 'ft';
+
+export const ELEVATION_UNIT_OPTIONS: { value: ElevationUnit; label: string }[] = [
+  { value: 'm', label: 'm' },
+  { value: 'ft', label: 'ft' },
+];
+
+// ─── Coordinates ─────────────────────────────────────────────────────────────
+
+export type CoordinateFormat = 'dms' | 'decimal';
+
+export const COORDINATE_FORMAT_OPTIONS: { value: CoordinateFormat; label: string }[] = [
+  { value: 'dms', label: 'DMS (° \' \")' },
+  { value: 'decimal', label: 'Decimal Degrees (°)' },
+];
 
 // ─── Backward-compat aliases ─────────────────────────────────────────────────
 
