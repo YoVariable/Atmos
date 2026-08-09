@@ -7,6 +7,32 @@
 
 import { celsiusToFelsius } from './units';
 
+import type { HourlyForecast, CurrentWeather } from './weather-api';
+
+/**
+ * Determines Today's effective weather code by synchronizing the current hour's
+ * raw condition with the 0.2 mm precipitation threshold rule.
+ */
+export function getTodayEffectiveCode(hourly: HourlyForecast, current: CurrentWeather, startIdx: number): number {
+  const rawCurrentCode = (startIdx !== -1 && hourly.weather_code[startIdx] !== undefined)
+    ? hourly.weather_code[startIdx]
+    : current?.weather_code ?? 3;
+
+  const currentPrecip = (startIdx !== -1 && hourly.precipitation && hourly.precipitation[startIdx] !== undefined)
+    ? hourly.precipitation[startIdx]
+    : 0;
+
+  const currentHasMeasurableRain = currentPrecip >= 0.2;
+
+  let displayCode = rawCurrentCode;
+  if ((!currentHasMeasurableRain && isPrecipitationCode(rawCurrentCode)) ||
+      (currentPrecip >= 0.2 && (rawCurrentCode === 0 || rawCurrentCode === 1))) {
+    displayCode = 3; // Overcast fallback for trace/sub-measurable precipitation
+  }
+
+  return displayCode;
+}
+
 const COMPASS_LABELS = [
   'N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE',
   'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW',
@@ -26,6 +52,14 @@ export function getWindDescription(kmh: number): string {
   if (kmh < 75) return 'Gale';
   return 'Severe gale';
 }
+
+export const isPrecipitationCode = (weatherCode: number) => [
+  51, 53, 55, 56, 57, // Drizzle & Freezing Drizzle
+  61, 63, 65, 66, 67, // Rain & Freezing Rain
+  71, 73, 75, 77,     // Snow & Snow Grains
+  80, 81, 82,         // Rain Showers
+  85, 86              // Snow Showers
+].includes(weatherCode);
 
 export interface VisibilityBand {
   label: string;
@@ -81,43 +115,42 @@ export interface DailyWeatherData {
  * Derives the dominant daytime weather code for a target date by evaluating
  * hourly slots exclusively between the location's actual sunrise and sunset times.
  */
-export function getDominantDaytimeCode(
-  hourly: HourlyWeatherData,
-  daily: DailyWeatherData,
-  targetDate: string
-): WmoCode {
-  const dateIndex = daily.time.findIndex((d) => d.startsWith(targetDate));
+export function getDominantDaytimeCode(hourly: any, daily: any, timeStr: string): number {
+  // 1. Filter hourly items for the given day during daylight hours
+  const dayHours = hourly.time
+    .map((t: string, idx: number) => ({ time: t, idx }))
+    .filter(({ time }: { time: string }) => time.startsWith(timeStr));
 
-  if (dateIndex === -1 || !daily.sunrise[dateIndex] || !daily.sunset[dateIndex]) {
-    return hourly.weather_code[0] ?? 0;
-  }
+  let maxPrecip = 0;
+  const codeCounts: Record<number, number> = {};
 
-  const sunriseMs = new Date(daily.sunrise[dateIndex]).getTime();
-  const sunsetMs = new Date(daily.sunset[dateIndex]).getTime();
+  for (const { idx } of dayHours) {
+    const code = hourly.weather_code[idx];
+    const precip = hourly.precipitation ? hourly.precipitation[idx] : 0;
+    
+    if (precip > maxPrecip) maxPrecip = precip;
 
-  const daytimeCodes: WmoCode[] = [];
-
-  hourly.time.forEach((timestamp, index) => {
-    const timeMs = new Date(timestamp).getTime();
-    if (timeMs >= sunriseMs && timeMs <= sunsetMs) {
-      daytimeCodes.push(hourly.weather_code[index]);
+    // Ignore precipitation codes if precipitation for that hour is below measurable threshold (0.2mm)
+    let effectiveCode = code;
+    if (isPrecipitationCode(code) && precip < 0.2) {
+      effectiveCode = 3; // Fallback to Overcast / Cloudy
     }
-  });
 
-  if (daytimeCodes.length === 0) {
-    return hourly.weather_code[0] ?? 0;
+    codeCounts[effectiveCode] = (codeCounts[effectiveCode] || 0) + 1;
   }
 
-  const counts = daytimeCodes.reduce<Record<WmoCode, number>>((acc, code) => {
-    acc[code] = (acc[code] || 0) + 1;
-    return acc;
-  }, {});
+  // 2. Return the most frequent weather code across daytime hours
+  let dominantCode = daily.weather_code[0];
+  let maxCount = 0;
 
-  const dominantCode = Object.keys(counts).reduce((a, b) =>
-    counts[Number(a)] >= counts[Number(b)] ? a : b
-  );
+  for (const [codeStr, count] of Object.entries(codeCounts)) {
+    if (count > maxCount) {
+      maxCount = count;
+      dominantCode = Number(codeStr);
+    }
+  }
 
-  return Number(dominantCode);
+  return dominantCode;
 }
 
 // --- Felsius & Temperature Bar Formatting ---

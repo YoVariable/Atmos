@@ -8,7 +8,9 @@ import * as SunCalc from 'suncalc';
 import { UVIndexDetailContent } from '@/components/uv-index-detail-content';
 import { Sun } from 'lucide-react';
 import { getUvCategory } from "@/lib/utils";
-import { calculateBarMetrics, getFelsiusBarGradient } from '@/lib/weather-helpers';
+
+import { calculateBarMetrics, getDominantDaytimeCode, getTodayEffectiveCode, getFelsiusBarGradient, isPrecipitationCode } from '@/lib/weather-helpers';
+
 import {
   formatFelsius,
   formatFelsiusValue,
@@ -24,6 +26,7 @@ import {
   pressureUnitLabel,
   FELSIUS_UNIT,
 } from '@/lib/units';
+
 import {
   Wind,
   Droplets,
@@ -65,69 +68,50 @@ const CARD_TRIGGER_CLASS =
 
 export function WeatherDisplay({ location, isActive }: WeatherDisplayProps) {
   const { settings } = useSettings();
-  // In weather-display.tsx (Around Line 63)
   const [showSettings, setShowSettings] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const { data: airQualityData } = useAirQuality(location.latitude, location.longitude);
-  console.log("Air Quality Data in Parent:", airQualityData);
 
-    // 1. Get the current hour (0-23) in the target timezone
   const currentHour = new Intl.DateTimeFormat('en-US', {
     timeZone: airQualityData?.timezone,
     hour: 'numeric',
     hourCycle: 'h23',
   }).format(new Date());
 
-  // 2. Find the index in your hourly data that matches this hour
-  // (Assumes your hourly.time array is in ISO format like '2026-07-17T14:00')
   const nowIndex = airQualityData?.hourly?.time?.findIndex(
     (t) => parseInt(t.split('T')[1].split(':')[0]) === parseInt(currentHour)
   ) ?? 0;
 
-  // 3. Extract the actual UV value for right now
   const currentUvValue = airQualityData?.hourly?.uv_index?.[nowIndex] ?? 0;
 
-  // Add this helper function inside the component
   const getFormattedDate = (date: Date) => {
-    // If the setting is 'dmy', use 'en-GB' format
     if (settings.longDateFormat === 'dmy') {
       return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
     }
-    // Default to 'en-US' (Month-Day-Year)
     return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
   };
 
   const { data, isLoading, error } = useWeather(location.latitude, location.longitude);
-const timezone = location.timezone === "auto" ? undefined : location.timezone;
-const cityTimeDate = new Date(new Date().toLocaleString("en-US", { timeZone: timezone }));
-const cityTime = (cityTimeDate.getHours() * 3600000) + (cityTimeDate.getMinutes() * 60000);
+  const timezone = location.timezone === "auto" ? undefined : location.timezone;
+  const cityTimeDate = new Date(new Date().toLocaleString("en-US", { timeZone: timezone }));
+  const cityTime = (cityTimeDate.getHours() * 3600000) + (cityTimeDate.getMinutes() * 60000);
 
-const sunriseDate = new Date(data?.daily.sunrise[0] || 0);
-const sunriseTime = (sunriseDate.getHours() * 3600000) + (sunriseDate.getMinutes() * 60000);
+  const sunriseDate = new Date(data?.daily.sunrise[0] || 0);
+  const sunriseTime = (sunriseDate.getHours() * 3600000) + (sunriseDate.getMinutes() * 60000);
 
-const sunsetDate = new Date(data?.daily.sunset[0] || 0);
-const sunsetTime = (sunsetDate.getHours() * 3600000) + (sunsetDate.getMinutes() * 60000);
+  const sunsetDate = new Date(data?.daily.sunset[0] || 0);
+  const sunsetTime = (sunsetDate.getHours() * 3600000) + (sunsetDate.getMinutes() * 60000);
 
-const isDay = cityTime > sunriseTime && cityTime < sunsetTime;
-const effectiveIsDay = isDay ? 1 : 0;
-
-// DEBUG: This will show you exactly what values are being compared in the console
-console.log("DEBUG:", { 
-  cityTime, 
-  sunriseTime, 
-  sunsetTime, 
-  isDay, 
-  effectiveIsDay,
-  timezone 
-});
+  const isDay = cityTime > sunriseTime && cityTime < sunsetTime;
+  const effectiveIsDay = isDay ? 1 : 0;
 
   const { data: airQuality } = useAirQuality(location.latitude, location.longitude);
 
   useEffect(() => {
-      if (isActive && data?.current) {
+    if (isActive && data?.current) {
       const isMidnightSun = data.daily.daylight_duration[0] > 86340;
       const isDayFlag = (isMidnightSun || data.current.is_day === 1) ? 1 : 0;
-      const color = getWeatherColor(data.current.weather_code, isDayFlag);
+      const color = getWeatherColor(displayCode, isDayFlag);
       const glow = document.getElementById('ambient-glow');
       if (glow) glow.style.backgroundColor = color;
     }
@@ -166,25 +150,21 @@ console.log("DEBUG:", {
       : []),
   ];
 
-  // Ensure these variables are derived from the selected city's daily data
-  // daily properties are arrays (one entry per day), use the first day's values
   const sunrise = new Date(daily.sunrise[0]);
   const sunset = new Date(daily.sunset[0]);
-  // Insert this on line 143:
   const currentCityTime = new Date(current.time).getTime();
 
   const todayHigh = daily.temperature_2m_max[0];
   const todayLow = daily.temperature_2m_min[0];
 
-  // Polar night: sun never rises (<1 min daylight). Midnight sun: never sets (>23h59m).
   const isPolarNight = daily.daylight_duration[0] < 60;
   const isMidnightSun = daily.daylight_duration[0] > 86340;
   const isSpecialSun = isPolarNight || isMidnightSun;
 
-  // Rolling 24-hour window from now (floored to the start of the current hour to prevent skipping)
   const currentHourStartMs = new Date(current.time).setHours(new Date(current.time).getHours(), 0, 0, 0);
   let startIdx = hourly.time.findIndex((t) => new Date(t).getTime() >= currentHourStartMs);
   if (startIdx === -1) startIdx = 0;
+  const displayCode = getTodayEffectiveCode(hourly, current, startIdx);
   const windowSize = 24;
   const endIdx = Math.min(hourly.time.length, startIdx + windowSize);
 
@@ -196,7 +176,7 @@ console.log("DEBUG:", {
   for (let i = startIdx; i < endIdx; i++) {
     timeline.push({ kind: 'hour', time: new Date(hourly.time[i]), index: i });
   }
-  // Only inject sun events for normal solar days (skip sentinel midnight values)
+
   if (!isSpecialSun) {
     const windowStart = new Date(hourly.time[startIdx]).getTime();
     const windowEnd = new Date(hourly.time[endIdx - 1]).getTime();
@@ -216,7 +196,6 @@ console.log("DEBUG:", {
   }
   timeline.sort((a, b) => a.time.getTime() - b.time.getTime());
 
-  // Location display name — add region for Antarctica entries
   const displayName =
     location.name === 'Antarctica' && location.country === 'Antarctica'
       ? 'Antarctica (general)'
@@ -230,7 +209,7 @@ console.log("DEBUG:", {
           {displayName}
         </h1>
         <div className="text-lg text-foreground/80 mb-4 font-medium tracking-tight">
-          {describeWeatherCode(current.weather_code)}
+          {describeWeatherCode(displayCode)}
         </div>
 
         <div className="flex items-start justify-center tracking-tighter text-foreground mb-4">
@@ -306,17 +285,24 @@ console.log("DEBUG:", {
             const i = item.index;
             const timeStr = hourly.time[i];
             const hourDate = item.time;
-            // Use API-provided is_day when available (hourly field added); fall back to current
-            // 1. Move `isNow` up so we can evaluate it first
             const isNow = i === startIdx;
 
-            // 2. Convert the API's 1 or 0 into a strict true/false boolean
             const apiIsDay = isSpecialSun || (hourly.is_day ? hourly.is_day[i] === 1 : current.is_day === 1);
-
-            // 3. OVERRIDE: If it's "Now", use our minute-accurate hook. Otherwise, trust the API.
             const isHourDay = isSpecialSun || (isNow ? isDay : apiIsDay);
 
-            const Icon = getWeatherIcon(hourly.weather_code[i], isHourDay ? 1 : 0);
+            const precipAmount = hourly.precipitation ? hourly.precipitation[i] : 0;
+            const hasMeasurableRain = precipAmount >= 0.2;
+
+            const rawWeatherCode = hourly.weather_code[i];
+            let effectiveWeatherCode = rawWeatherCode;
+
+            if ((!hasMeasurableRain && isPrecipitationCode(rawWeatherCode)) ||
+                (precipAmount >= 0.2 && (rawWeatherCode === 0 || rawWeatherCode === 1))) {
+              effectiveWeatherCode = 3;
+            }
+
+            const Icon = getWeatherIcon(effectiveWeatherCode, isHourDay ? 1 : 0);
+
             const temp = hourly.temperature_2m[i];
             const precip = hourly.precipitation_probability[i];
 
@@ -328,7 +314,7 @@ console.log("DEBUG:", {
                 <Icon className="w-6 h-6 text-foreground/90" strokeWidth={1.5} />
                 <span className="text-lg font-medium tracking-tight">{formatFelsiusValue(temp)}°</span>
                 <div className="h-4 flex items-center justify-center">
-                  {precip > 0 && (
+                  {precip > 0 && hasMeasurableRain && (
                     <span className="text-xs font-bold text-sky-500">{precip}%</span>
                   )}
                 </div>
@@ -345,25 +331,26 @@ console.log("DEBUG:", {
           <span>7-Day Forecast</span>
         </div>
         <div className="space-y-1">
-          {daily.time.map((timeStr, i) => {
-            const date = parseLocalDateString(timeStr);
-            const dayName = i === 0 ? 'Today' : date.toLocaleDateString('en-GB', { weekday: 'short' });
-            const effectiveDayFlag = (i === 0 && isSpecialSun) ? 1 : (i === 0 ? current.is_day : 1);
-            const displayCode = i === 0 ? current.weather_code : daily.weather_code[i];
-            const Icon = getWeatherIcon(displayCode, effectiveDayFlag);
-            const high = daily.temperature_2m_max[i];
-            const low = daily.temperature_2m_min[i];
-            const precip = daily.precipitation_probability_max[i];
+        {daily.time.map((timeStr, i) => {
+          const date = parseLocalDateString(timeStr);
+          const dayName = i === 0 ? 'Today' : date.toLocaleDateString('en-GB', { weekday: 'short' });
 
-            const isToday = i === 0;
-              const { leftPercent, widthPercent, showCurrentDot, dotPercent } = calculateBarMetrics(
-                low,
-                high,
-                globalMin,
-                globalMax,
-                isToday,
-                current.temperature_2m
-              );
+          const effectiveDayFlag = (i === 0 && isSpecialSun) ? 1 : (i === 0 ? current.is_day : 1);
+          const Icon = getWeatherIcon(displayCode, effectiveDayFlag);
+
+        const high = daily.temperature_2m_max[i];
+        const low = daily.temperature_2m_min[i];
+        const precip = daily.precipitation_probability_max[i];
+
+        const isToday = i === 0;
+        const { leftPercent, widthPercent, showCurrentDot, dotPercent } = calculateBarMetrics(
+          low,
+          high,
+          globalMin,
+          globalMax,
+          isToday,
+          current.temperature_2m
+        );
 
             return (
               <DetailSheet key={timeStr} title="Conditions" icon={Cloud} trigger={
@@ -382,24 +369,23 @@ console.log("DEBUG:", {
                       {formatFelsius(low)}
                     </span>
 
-                    {/* --- Dynamic Temperature Bar & Indicator Dot --- */}
-                    <div className="flex-1 h-1.5 rounded-full bg-black/10 relative">
-                            <div
-                              className="absolute h-full rounded-full"
-                              style={{
-                                left: `${leftPercent}%`,
-                                width: `${widthPercent}%`,
-                                background: getFelsiusBarGradient(low, high),
-                              }}
-                            >
-                              {showCurrentDot && (
-                                <div
-                                  className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-2.5 h-2.5 rounded-full bg-white shadow-md border border-black/20 z-10"
-                                  style={{ left: `${dotPercent}%` }}
-                                />
-                              )}
-                            </div>
-                          </div>
+                    <div className="flex-1 h-1.5 rounded-full bg-black/10 dark:bg-white/10 relative">
+                      <div
+                        className="absolute h-full rounded-full"
+                        style={{
+                          left: `${leftPercent}%`,
+                          width: `${widthPercent}%`,
+                          background: getFelsiusBarGradient(low, high),
+                        }}
+                      >
+                        {showCurrentDot && (
+                          <div
+                            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-2.5 h-2.5 rounded-full bg-white shadow-md border border-black/20 z-10"
+                            style={{ left: `${dotPercent}%` }}
+                          />
+                        )}
+                      </div>
+                    </div>
 
                     <span className="text-[15px] font-semibold text-foreground w-10 text-right">
                       {formatFelsius(high)}
@@ -407,7 +393,7 @@ console.log("DEBUG:", {
                   </div>
                 </button>
               }>
-                <DailyDetailContent daily={daily} hourly={hourly} initialDayIndex={i} current={data.current} />
+                <DailyDetailContent daily={daily} hourly={hourly} initialDayIndex={i} current={data.current} dominantCode={displayCode} />
               </DetailSheet>
             );
           })}
@@ -458,30 +444,28 @@ console.log("DEBUG:", {
           </DetailSheet>
         )}
 
-    <DetailSheet 
+        <DetailSheet 
           title="Sunrise & Sunset" 
-          icon={isDay ? Sunset : Sunrise} // Dynamic header icon
+          icon={isDay ? Sunset : Sunrise}
           trigger={
             <button className={CARD_TRIGGER_CLASS}>
               <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-foreground/60 mb-2">
-                {/* Dynamic trigger icon */}
                 {isDay ? <Sunset className="w-4 h-4" /> : <Sunrise className="w-4 h-4" />}
                 <span>{isDay ? "Sunset" : "Sunrise"}</span>
               </div>
               <div className="mt-auto pt-4 space-y-4">
-    {/* Add 'relative -top-2' to nudge it up without changing document flow */}
-    <div className="text-3xl font-medium tracking-tight relative -top-1">
-      {isSpecialSun 
-      ? '>7 days' 
-      : formatTime(isDay ? sunset : sunrise, settings.timeFormat)}
-      </div>
-    <div className="text-[15px] font-semibold text-foreground/80">
-    <p className="text-sm text-foreground/60">
-      {isDay ? "Sunrise: " : "Sunset: "} 
-      {isSpecialSun ? '>7 days' : formatTime(isDay ? sunrise : sunset, settings.timeFormat)}
-    </p>
-   </div>
- </div>
+                <div className="text-3xl font-medium tracking-tight relative -top-1">
+                  {isSpecialSun 
+                  ? '>7 days' 
+                  : formatTime(isDay ? sunset : sunrise, settings.timeFormat)}
+                </div>
+                <div className="text-[15px] font-semibold text-foreground/80">
+                  <p className="text-sm text-foreground/60">
+                    {isDay ? "Sunrise: " : "Sunset: "} 
+                    {isSpecialSun ? '>7 days' : formatTime(isDay ? sunrise : sunset, settings.timeFormat)}
+                  </p>
+                </div>
+              </div>
             </button>
           }
         >
@@ -534,43 +518,40 @@ console.log("DEBUG:", {
           <FeelsLikeDetailContent current={current} />
         </DetailSheet>
 
-<DetailSheet 
-  title="UV Index" 
-  icon={Sun} 
-  trigger={
-    <button className={CARD_TRIGGER_CLASS}>
-      {/* Header */}
-      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-foreground/60 mb-2">
-        <Sun className="w-4 h-4" />
-        <span>UV Index</span>
-      </div>
+        <DetailSheet 
+          title="UV Index" 
+          icon={Sun} 
+          trigger={
+            <button className={CARD_TRIGGER_CLASS}>
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-foreground/60 mb-2">
+                <Sun className="w-4 h-4" />
+                <span>UV Index</span>
+              </div>
 
-      {/* Main Content */}
-      <div className="mt-auto pt-4">
-        <div className="text-3xl font-medium tracking-tight font-mono">
-          {Math.round(currentUvValue)}
-        </div>
-        <div className="text-sm text-foreground/70 font-medium mt-1">
-          {getUvCategory(currentUvValue)}
-        </div>
-      </div>
-      
-      {/* Gradient Bar with Marker */}
-      <div className="relative w-full h-1.5 rounded-full mt-4 bg-gradient-to-r from-green-400 via-yellow-400 to-purple-500 opacity-80">
-        <div 
-          className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-[0_0_4px_rgba(0,0,0,0.3)] border-2 border-white/50"
-          style={{ left: `${Math.min((currentUvValue / 11) * 100, 100)}%` }}
-        />
-      </div>
-    </button>
-  }
->
-  <UVIndexDetailContent 
-    hourly={airQualityData?.hourly} 
-    initialDayIndex={0} 
-    timezone={airQualityData?.timezone} 
-  />
-</DetailSheet>
+              <div className="mt-auto pt-4">
+                <div className="text-3xl font-medium tracking-tight font-mono">
+                  {Math.round(currentUvValue)}
+                </div>
+                <div className="text-sm text-foreground/70 font-medium mt-1">
+                  {getUvCategory(currentUvValue)}
+                </div>
+              </div>
+              
+              <div className="relative w-full h-1.5 rounded-full mt-4 bg-gradient-to-r from-green-400 via-yellow-400 to-purple-500 opacity-80">
+                <div 
+                  className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-[0_0_4px_rgba(0,0,0,0.3)] border-2 border-white/50"
+                  style={{ left: `${Math.min((currentUvValue / 11) * 100, 100)}%` }}
+                />
+              </div>
+            </button>
+          }
+        >
+          <UVIndexDetailContent 
+            hourly={airQualityData?.hourly} 
+            initialDayIndex={0} 
+            timezone={airQualityData?.timezone} 
+          />
+        </DetailSheet>
 
         <DetailSheet title="Humidity" icon={Droplets} trigger={
           <button className={`${CARD_TRIGGER_CLASS} justify-start gap-4 pb-4`}>
@@ -582,9 +563,9 @@ console.log("DEBUG:", {
               <div className="text-3xl font-medium tracking-tight font-mono">
                 {formatHumidity(current.relative_humidity_2m)}
               </div>
-                <div className="text-sm text-foreground/60 mt-5 font-semibold">
-                  Dew Point: {formatFelsius(current.dew_point_2m)}
-                </div>
+              <div className="text-sm text-foreground/60 mt-5 font-semibold">
+                Dew Point: {formatFelsius(current.dew_point_2m)}
+              </div>
             </div>
           </button>
         }>

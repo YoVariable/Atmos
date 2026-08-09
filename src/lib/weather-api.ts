@@ -29,6 +29,7 @@ export interface CurrentWeather {
   wind_gusts_10m: number; // km/h
   wind_direction_10m: number; // degrees
   pressure_msl: number; // hPa
+  surface_pressure: number; // hPa
   visibility: number; // meters
   is_day: number; // 0 | 1
   uv_index?: number;
@@ -39,16 +40,16 @@ export interface HourlyForecast {
   temperature_2m: number[]; // Celsius
   apparent_temperature: number[]; // Celsius
   precipitation_probability: number[]; // %
-  precipitation: number[]; // <-- Add this line!
+  precipitation: number[];
   weather_code: number[];
-  is_day?: number[]; // 1 = day, 0 = night (optional for backward compat with cached data)
+  is_day?: number[]; // 1 = day, 0 = night
   wind_speed_10m: number[]; // km/h
   wind_gusts_10m: number[]; // km/h
   pressure_msl: number[]; // hPa
   relative_humidity_2m: number[]; // %
   dew_point_2m: number[]; // Celsius
   visibility: number[]; // meters
-  uv_index: number[]; // Add this line
+  uv_index: number[];
 }
 
 export interface DailyForecast {
@@ -81,12 +82,15 @@ export interface AirQuality {
   nitrogen_dioxide: number; // ug/m3
   sulphur_dioxide: number; // ug/m3
   carbon_monoxide: number; // ug/m3
-  timezone: string; // Add this
+  timezone: string;
   hourly?: {
-    time: string[];    // Array of strings
+    time: string[];
     uv_index: number[];
   };
 }
+
+const CACHE_TTL = 15 * 60 * 1000; // 15-minute cache
+const TRACE_PRECIPITATION_THRESHOLD = 0.2; // mm
 
 export async function searchCities(query: string): Promise<GeocodeResult[]> {
   if (!query.trim()) return [];
@@ -120,88 +124,114 @@ export async function searchCities(query: string): Promise<GeocodeResult[]> {
   );
 }
 
-    const CACHE_TTL = 15 * 60 * 1000; // 15-minute cache
+/**
+ * Gates weather codes against actual precipitation volume.
+ * If the code implies precipitation (51-99) but the volume is negligible,
+ * it overwrites the code to 3 (Overcast) to prevent rendering rain/snow icons.
+ */
+function gateTracePrecipitation(code: number, precipAmount: number): number {
+  const isPrecipitationCode = code >= 51 && code <= 99;
+  
+  if (isPrecipitationCode && precipAmount <= TRACE_PRECIPITATION_THRESHOLD) {
+    return 3; // Overcast
+  }
+  return code;
+}
 
-    export async function getForecast(
-      latitude: number,
-      longitude: number,
-    ): Promise<ForecastResponse> {
-      const cacheKey = `atmos_forecast_${latitude.toFixed(3)}_${longitude.toFixed(3)}`;
+export async function getForecast(
+  latitude: number,
+  longitude: number,
+): Promise<ForecastResponse> {
+  const cacheKey = `atmos_forecast_${latitude.toFixed(3)}_${longitude.toFixed(3)}`;
 
-      // 1. Try to return cached data if fresh
-      const cached = localStorage.getItem(cacheKey);
-      if (cached) {
-        const { timestamp, data } = JSON.parse(cached);
-        if (Date.now() - timestamp < CACHE_TTL) {
-          return data;
-        }
-      }
-
-      // 2. Build your original core URL logic
-      const url = new URL('https://api.open-meteo.com/v1/forecast');
-      url.searchParams.set('latitude', String(latitude));
-      url.searchParams.set('longitude', String(longitude));
-      url.searchParams.set(
-        'current',
-        [
-          'temperature_2m', 'apparent_temperature', 'relative_humidity_2m',
-          'dew_point_2m', 'precipitation', 'weather_code', 'wind_speed_10m',
-          'wind_gusts_10m', 'wind_direction_10m', 'pressure_msl',
-          'visibility', 'is_day',
-        ].join(','),
-      );
-      url.searchParams.set(
-        'hourly',
-        [
-          'temperature_2m', 'apparent_temperature', 'precipitation_probability',
-          'weather_code', 'is_day', 'wind_speed_10m', 'wind_gusts_10m',
-          'pressure_msl', 'relative_humidity_2m', 'dew_point_2m', 'visibility',
-          'precipitation',
-        ].join(','),
-      );
-      url.searchParams.set(
-        'daily',
-        [
-          'temperature_2m_max', 'temperature_2m_min', 'precipitation_probability_max',
-          'weather_code', 'wind_speed_10m_max', 'sunrise', 'sunset',
-          'daylight_duration', 
-          'uv_index_max' // Add this line
-        ].join(','),
-      );
-      url.searchParams.set('timezone', 'auto');
-      url.searchParams.set('wind_speed_unit', 'kmh');
-      url.searchParams.set('precipitation_unit', 'mm');
-      url.searchParams.set('temperature_unit', 'celsius');
-      url.searchParams.set('forecast_days', '7');
-      url.searchParams.set('past_hours', '6');
-
-            // 3. Execute fetch with 429 intercept
-      const res = await fetch(url.toString());
-
-      // Intercept 429 and return stale cache if available
-      if (res.status === 429) {
-        const stale = localStorage.getItem(cacheKey);
-        if (stale) return JSON.parse(stale).data;
-      }
-
-      if (!res.ok) throw new Error('Failed to fetch forecast');
-
-      const data: ForecastResponse = await res.json();
-
-      // Overwrite raw daily weather codes with dominant daytime codes (sunrise to sunset)
-      if (data.daily && data.hourly) {
-        data.daily.weather_code = data.daily.time.map((dateString: string) =>
-          getDominantDaytimeCode(data.hourly, data.daily, dateString)
-        );
-      }
-
-      // 4. Save transformed data to cache before returning
-      localStorage.setItem(cacheKey, JSON.stringify({ timestamp: Date.now(), data }));
-
+  // 1. Try to return cached data if fresh
+  const cached = localStorage.getItem(cacheKey);
+  if (cached) {
+    const { timestamp, data } = JSON.parse(cached);
+    if (Date.now() - timestamp < CACHE_TTL) {
       return data;
     }
+  }
 
-/** Current air quality (US AQI, 0-500 scale) for a location. Open-Meteo Air Quality API. */
+  // 2. Build core URL logic
+  const url = new URL('https://api.open-meteo.com/v1/forecast');
+  url.searchParams.set('latitude', String(latitude));
+  url.searchParams.set('longitude', String(longitude));
+  url.searchParams.set(
+    'current',
+    [
+      'temperature_2m', 'apparent_temperature', 'relative_humidity_2m',
+      'dew_point_2m', 'precipitation', 'weather_code', 'wind_speed_10m',
+      'wind_gusts_10m', 'wind_direction_10m', 'pressure_msl',
+      'surface_pressure',
+      'visibility', 'is_day',
+    ].join(','),
+  );
+  url.searchParams.set(
+    'hourly',
+    [
+      'temperature_2m', 'apparent_temperature', 'precipitation_probability',
+      'weather_code', 'is_day', 'wind_speed_10m', 'wind_gusts_10m',
+      'pressure_msl', 'relative_humidity_2m', 'dew_point_2m', 'visibility',
+      'precipitation',
+    ].join(','),
+  );
+  url.searchParams.set(
+    'daily',
+    [
+      'temperature_2m_max', 'temperature_2m_min', 'precipitation_probability_max',
+      'weather_code', 'wind_speed_10m_max', 'sunrise', 'sunset',
+      'daylight_duration', 
+      'uv_index_max',
+    ].join(','),
+  );
+  url.searchParams.set('timezone', 'auto');
+  url.searchParams.set('wind_speed_unit', 'kmh');
+  url.searchParams.set('precipitation_unit', 'mm');
+  url.searchParams.set('temperature_unit', 'celsius');
+  url.searchParams.set('forecast_days', '7');
+  url.searchParams.set('past_hours', '6');
+
+  // 3. Execute fetch with 429 intercept
+  const res = await fetch(url.toString());
+
+  if (res.status === 429) {
+    const stale = localStorage.getItem(cacheKey);
+    if (stale) return JSON.parse(stale).data;
+  }
+
+  if (!res.ok) throw new Error('Failed to fetch forecast');
+
+  const data: ForecastResponse = await res.json();
+
+  // --- 1. GATE TRACE PRECIPITATION ---
+  if (data.current) {
+    data.current.weather_code = gateTracePrecipitation(
+      data.current.weather_code,
+      data.current.precipitation
+    );
+  }
+
+  if (data.hourly && data.hourly.weather_code && data.hourly.precipitation) {
+    data.hourly.weather_code = data.hourly.weather_code.map((code, index) => 
+      gateTracePrecipitation(code, data.hourly.precipitation[index])
+    );
+  }
+
+  // --- 2. CALCULATE DOMINANT DAILY CODES ---
+  if (data.daily && data.hourly) {
+    data.daily.weather_code = data.daily.time.map((dateString: string) =>
+      getDominantDaytimeCode(data.hourly, data.daily, dateString)
+    );
+  }
+
+  // 4. Save transformed data to cache before returning
+  localStorage.setItem(cacheKey, JSON.stringify({ timestamp: Date.now(), data }));
+
+  return data;
+}
+
+/** Current air quality for a location. Open-Meteo Air Quality API. */
 export async function getAirQuality(latitude: number, longitude: number): Promise<AirQuality> {
   const url = new URL('https://air-quality-api.open-meteo.com/v1/air-quality');
   url.searchParams.set('latitude', String(latitude));
@@ -219,7 +249,7 @@ export async function getAirQuality(latitude: number, longitude: number): Promis
     ].join(','),
   );
   url.searchParams.set('timezone', 'auto');
-  url.searchParams.set('hourly', 'uv_index'); // Add this to request the time-series data
+  url.searchParams.set('hourly', 'uv_index');
 
   const res = await fetch(url.toString());
   if (!res.ok) throw new Error('Failed to fetch air quality');
@@ -234,7 +264,7 @@ export async function getAirQuality(latitude: number, longitude: number): Promis
     sulphur_dioxide: data.current.sulphur_dioxide,
     carbon_monoxide: data.current.carbon_monoxide,
     hourly: data.hourly,
-    timezone: data.timezone, // Ensure this matches your expected structure
+    timezone: data.timezone,
   };
 }
 
@@ -244,7 +274,6 @@ export async function reverseGeocode(
   longitude: number,
 ): Promise<string | null> {
   try {
-    // Engine 1: OpenStreetMap Nominatim (Prioritized for hyper-local accuracy like Rosemead)
     const url = new URL('https://nominatim.openstreetmap.org/reverse');
     url.searchParams.set('format', 'jsonv2');
     url.searchParams.set('lat', String(latitude));
@@ -256,7 +285,6 @@ export async function reverseGeocode(
         const addr = data.address;
         
         if (addr) {
-            // Parse from the most granular neighborhood/town layer outwards
             const localCity = addr.city || addr.town || addr.village || addr.suburb || addr.neighbourhood;
             if (localCity) return localCity;
         }
@@ -265,7 +293,6 @@ export async function reverseGeocode(
     console.warn("Nominatim geocoding failed, trying fallback:", error);
   }
 
-  // Engine 2 Fallback: BigDataCloud (If Nominatim hits a rate limit)
   try {
     const fallbackUrl = new URL('https://api.bigdatacloud.net/data/reverse-geocode-client');
     fallbackUrl.searchParams.set('latitude', String(latitude));
@@ -283,10 +310,6 @@ export async function reverseGeocode(
   }
 }
 
-/**
- * Weather code (WMO) -> short description. Open-Meteo returns WMO codes;
- * this is the standard mapping used for icon/label selection.
- */
 export function describeWeatherCode(code: number): string {
   const map: Record<number, string> = {
     0: 'Clear sky',

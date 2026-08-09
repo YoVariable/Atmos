@@ -37,7 +37,7 @@ function PillSelect({
           className={`px-3 py-1.5 rounded-full text-sm font-semibold transition-all ${
             value === opt.value
               ? 'bg-primary text-primary-foreground shadow-sm'
-              : 'bg-black/5 text-foreground/70 hover:bg-black/10'
+              : 'bg-black/5 dark:bg-white/10 text-foreground/70 hover:bg-black/10 dark:hover:bg-white/20'
           }`}
         >
           {opt.label}
@@ -80,7 +80,7 @@ export function SettingsManager() {
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
         <button
-          className="p-2 -ml-2 rounded-full hover:bg-black/5 transition-colors text-foreground/80 hover:text-foreground"
+          className="p-2 -ml-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors text-foreground/80 hover:text-foreground"
           aria-label="Settings"
         >
           <Settings className="w-6 h-6" />
@@ -91,6 +91,18 @@ export function SettingsManager() {
         <DialogTitle className="text-xl font-bold tracking-tight mb-1">Settings</DialogTitle>
 
         <div className="flex-1 overflow-y-auto space-y-6 pb-4 scrollbar-hide">
+
+          {/* ── Appearance ── */}
+          <Section title="Appearance">
+            <PillSelect
+              options={[
+                { value: 'light', label: 'Light' },
+                { value: 'dark', label: 'Dark' },
+              ]}
+              value={settings.theme || 'light'}
+              onChange={(v) => updateSettings({ theme: v as 'light' | 'dark' })}
+            />
+          </Section>
 
           {/* ── Time Format ── */}
           <Section title="Time Format">
@@ -112,7 +124,9 @@ export function SettingsManager() {
                     key={option.value}
                     onClick={() => updateSettings({ longDateFormat: option.value as LongDateFormat })}
                     className={`w-full flex items-center justify-between p-3.5 rounded-2xl transition-all text-left ${
-                      isSelected ? 'bg-white shadow-sm ring-1 ring-black/5' : 'bg-white/40 hover:bg-white/80'
+                      isSelected 
+                        ? 'bg-white dark:bg-white/15 shadow-sm ring-1 ring-black/5 dark:ring-white/10' 
+                        : 'bg-white/40 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10'
                     }`}
                   >
                     <div className="min-w-0 pr-4">
@@ -180,7 +194,7 @@ export function SettingsManager() {
               />
             </SettingRow>
             
-                        {/* Air Pollution: Gases */}
+            {/* Air Pollution: Gases */}
             <SettingRow label="Air Pollution (Gases)">
               <PillSelect
                 options={[
@@ -206,7 +220,7 @@ export function SettingsManager() {
             </SettingRow>
 
             {/* Temperature — locked */}
-            <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-black/[0.03] border border-black/5">
+            <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-black/[0.03] dark:bg-white/[0.03] border border-black/5 dark:border-white/5">
               <Lock className="w-4 h-4 text-foreground/30 shrink-0" />
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium text-foreground/50">Temperature</div>

@@ -46,8 +46,8 @@ function SortableLocationItem({ loc, activeLocationId, setActiveLocationId, setI
       style={style}
       className={`group flex items-center justify-between p-4 rounded-[1.25rem] transition-all ${
         activeLocationId === loc.id && !isEditing
-          ? "bg-white shadow-sm ring-1 ring-black/5"
-          : "bg-white/40 hover:bg-white/80"
+          ? "bg-white dark:bg-zinc-800 shadow-sm ring-1 ring-black/5 dark:ring-white/10"
+          : "bg-white/40 dark:bg-zinc-900/40 hover:bg-white/80 dark:hover:bg-zinc-900/80"
       } ${isEditing ? "cursor-default" : "cursor-pointer"}`}
       onClick={() => {
         if (!isEditing) {
@@ -153,7 +153,7 @@ export function LocationManager() {
       if (!open) setIsEditing(false); // Reset edit state when closing the dialog
     }}>
       <DialogTrigger asChild>
-        <button className="p-2 -mr-2 rounded-full hover:bg-black/5 transition-colors text-foreground/80 hover:text-foreground">
+        <button className="p-2 -mr-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-foreground/80 hover:text-foreground">
           <List className="w-6 h-6" />
         </button>
       </DialogTrigger>

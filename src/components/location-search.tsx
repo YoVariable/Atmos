@@ -26,7 +26,7 @@ export function LocationSearch({ onSelect, onUseCurrentLocation, isLocatingCurre
         <input
           type="text"
           placeholder="Search for a city..."
-          className="w-full pl-11 pr-11 py-3.5 bg-black/5 border-none rounded-2xl text-[15px] font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-muted-foreground text-foreground"
+          className="w-full pl-11 pr-11 py-3.5 bg-black/5 dark:bg-zinc-800/60 border-none rounded-2xl text-[15px] font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-muted-foreground text-foreground"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
@@ -39,7 +39,7 @@ export function LocationSearch({ onSelect, onUseCurrentLocation, isLocatingCurre
         <button
           onClick={onUseCurrentLocation}
           disabled={isLocatingCurrent}
-          className="w-full flex items-center gap-3 px-4 py-3.5 bg-white/60 hover:bg-white text-foreground rounded-2xl text-[15px] font-semibold transition-all disabled:opacity-50 group"
+          className="w-full flex items-center gap-3 px-4 py-3.5 bg-white/60 dark:bg-zinc-800/60 hover:bg-white dark:hover:bg-zinc-800 text-foreground rounded-2xl text-[15px] font-semibold transition-all disabled:opacity-50 group"
         >
           {isLocatingCurrent ? (
             <Loader2 className="w-4 h-4 animate-spin text-primary" />
@@ -51,15 +51,15 @@ export function LocationSearch({ onSelect, onUseCurrentLocation, isLocatingCurre
       )}
 
       {results && results.length > 0 && (
-        <div className="bg-white rounded-2xl overflow-hidden shadow-sm ring-1 ring-black/5">
+        <div className="bg-white dark:bg-zinc-900 rounded-2xl overflow-hidden shadow-sm ring-1 ring-black/5 dark:ring-white/10">
           <div className="max-h-[250px] overflow-y-auto scrollbar-hide">
             {results.map((result) => (
               <button
                 key={result.id}
                 onClick={() => onSelect(result)}
-                className="w-full flex items-center gap-4 px-4 py-3 text-left hover:bg-black/5 transition-colors border-b border-black/5 last:border-0"
+                className="w-full flex items-center gap-4 px-4 py-3 text-left hover:bg-black/5 dark:hover:bg-white/5 transition-colors border-b border-black/5 dark:border-white/10 last:border-0"
               >
-                <div className="w-8 h-8 rounded-full bg-black/5 flex items-center justify-center shrink-0">
+                <div className="w-8 h-8 rounded-full bg-black/5 dark:bg-zinc-800 flex items-center justify-center shrink-0">
                   <MapPin className="w-4 h-4 text-foreground/60" />
                 </div>
                 <div className="min-w-0 flex-1">

@@ -31,6 +31,7 @@ export interface WeatherSettings {
   coordinateFormat?: CoordinateFormat;
   airPollutionUnit?: string;
   particulatePollutionUnit?: string;
+  theme: 'light' | 'dark';
 }
 
 const DEFAULT_SETTINGS: WeatherSettings = {
@@ -44,6 +45,7 @@ const DEFAULT_SETTINGS: WeatherSettings = {
   coordinateFormat: 'dms',
   airPollutionUnit: 'μg/m³',
   particulatePollutionUnit: 'μg/m³',
+  theme: 'light',
 };
 
 interface SettingsContextValue {

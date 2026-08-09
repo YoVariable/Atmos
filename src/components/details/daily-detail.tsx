@@ -16,16 +16,17 @@ import { describeWeatherCode } from '@/lib/weather-api';
 import { formatFelsius, formatFelsiusValue, FELSIUS_UNIT, formatTime, formatPrecipitation } from '@/lib/units';
 import { parseLocalDateString, formatLongDate } from '@/lib/date-utils';
 import { useSettings } from '@/lib/use-settings';
+import { getDominantDaytimeCode, isPrecipitationCode } from '@/lib/weather-helpers';
 
 const WEEKDAY_LETTERS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 type DayPoint = {
   hourLabel: string;
   hour: number;
-  actual: number;  // Felsius
-  feels: number;   // Felsius
+  actual: number;
+  feels: number;
   precip: number;
-  precipAmount: number; // <-- Add this new property
+  precipAmount: number;
 };
 
 export function DailyDetailContent({
@@ -33,11 +34,13 @@ export function DailyDetailContent({
   hourly,
   initialDayIndex,
   current,
+  dominantCode,
 }: {
   daily: DailyForecast;
   hourly: HourlyForecast;
   initialDayIndex: number;
-  current: any; // Replace 'any' with 'CurrentWeather' or your equivalent type if you have one defined!
+  current: any;
+  dominantCode?: number;
 }) {
   const [selectedDay, setSelectedDay] = useState(initialDayIndex);
   const [mode, setMode] = useState<'actual' | 'feels'>('actual');
@@ -46,7 +49,6 @@ export function DailyDetailContent({
   const selectedDate = parseLocalDateString(daily.time[selectedDay]);
   const dateHeading = formatLongDate(selectedDate, settings.longDateFormat);
 
-  // Always compute BOTH actual and feels for each hour (mode not in deps)
   const dayHours = useMemo<DayPoint[]>(() => {
     const dateStr = daily.time[selectedDay];
     const pts: DayPoint[] = [];
@@ -63,13 +65,12 @@ export function DailyDetailContent({
         actual: formatFelsiusValue(hourly.temperature_2m[i]),
         feels: formatFelsiusValue(hourly.apparent_temperature[i]),
         precip: hourly.precipitation_probability[i],
-        precipAmount: hourly.precipitation[i], // <-- Add this line
+        precipAmount: hourly.precipitation[i],
       });
     });
     return pts.sort((a, b) => a.hour - b.hour);
-  }, [daily.time, hourly, selectedDay]);
+  }, [daily.time, hourly, selectedDay, selectedDate, settings.timeFormat]);
 
-  // Active series for H/L dots
   const activeKey = mode === 'actual' ? 'actual' : 'feels';
   const highPoint = dayHours.length
     ? dayHours.reduce((b, p) => (p[activeKey] > b[activeKey] ? p : b))
@@ -80,7 +81,6 @@ export function DailyDetailContent({
 
   const dailyTotal = dayHours.reduce((sum, point) => sum + point.precipAmount, 0);
 
-  // Header high/low values: daily data for actual, computed from hourly for feels
   const actualHigh = daily.temperature_2m_max[selectedDay];
   const actualLow = daily.temperature_2m_min[selectedDay];
   const feelsHigh = dayHours.length ? Math.max(...dayHours.map((p) => p.feels)) : formatFelsiusValue(actualHigh);
@@ -89,32 +89,32 @@ export function DailyDetailContent({
   const displayHigh = mode === 'actual' ? formatFelsius(actualHigh) : `${feelsHigh}${FELSIUS_UNIT}`;
   const displayLow = mode === 'actual' ? formatFelsius(actualLow) : `${feelsLow}${FELSIUS_UNIT}`;
 
-  // 1. Check if the user is looking at "Today"
   const isToday = selectedDay === 0;
-
-  // 2. Check for midnight sun locally
   const isMidnightSun = daily.daylight_duration[0] > 86340;
-
-  // 3. Determine if we should show day or night
   const detailsIsDay = isToday ? (isMidnightSun ? 1 : current?.is_day ?? 1) : 1;
+  
+  // Determine displayCode: use the passed dominantCode for Today, or calculate for future days
+    let displayCode: number;
+    if (selectedDay === 0 && dominantCode !== undefined) {
+      displayCode = dominantCode;
+    } else if (selectedDay === 0) {
+      // Safe fallback if dominantCode isn't passed
+      const rawCurrentCode = current?.weather_code ?? 3;
+      displayCode = rawCurrentCode;
+    } else {
+      displayCode = getDominantDaytimeCode(hourly, daily, daily.time[selectedDay]);
+    }
 
-  // 4. OVERRIDE: Use current weather code if it's today, otherwise use the daily summary
-  const displayCode = isToday ? current?.weather_code : daily.weather_code[selectedDay];
+    const Icon = getWeatherIcon(displayCode, detailsIsDay);
+    const precipChance = daily.precipitation_probability_max[selectedDay];
 
-  // 5. Render the icon with the overridden code
-  const Icon = getWeatherIcon(displayCode, detailsIsDay);
+    const formatTooltipTime = (rawHour: number) => {
+      const d = new Date(selectedDate);
+      d.setHours(rawHour, 0, 0, 0);
+      return formatTime(d, settings.timeFormat);
+    };
 
-  const precipChance = daily.precipitation_probability_max[selectedDay];
-
-  // Formats the raw "00", "13" hour strings into 12h/24h format for the hover tooltip
-  const formatTooltipTime = (rawHour: number) => {
-    const d = new Date(selectedDate);
-    d.setHours(rawHour, 0, 0, 0);
-    return formatTime(d, settings.timeFormat);
-  };
-
-  // Add this right before your return statement
-  const CustomPrecipTooltip = ({ active, payload, label }: any) => {
+  const CustomPrecipTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload as DayPoint;
       return (
@@ -139,19 +139,18 @@ export function DailyDetailContent({
 
   return (
     <div className="space-y-6">
-      {/* Day tabs */}
       <div className="grid grid-cols-7 gap-1">
         {daily.time.map((dateStr, i) => {
           const date = parseLocalDateString(dateStr);
           const isSelected = i === selectedDay;
-          const isToday = i === 0;
+          const isTodayTab = i === 0;
           return (
             <button
               key={dateStr}
               onClick={() => setSelectedDay(i)}
               className="flex flex-col items-center gap-1.5 py-1 rounded-xl transition-colors"
             >
-              <span className={`text-[11px] font-bold uppercase ${isToday && !isSelected ? 'text-primary' : 'text-foreground/40'}`}>
+              <span className={`text-[11px] font-bold uppercase ${isTodayTab && !isSelected ? 'text-primary' : 'text-foreground/40'}`}>
                 {WEEKDAY_LETTERS[date.getDay()]}
               </span>
               <span className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-semibold ${isSelected ? 'bg-primary text-primary-foreground' : 'text-foreground/80'}`}>
@@ -163,7 +162,6 @@ export function DailyDetailContent({
       </div>
       <div className="text-center text-sm font-semibold text-foreground/70">{dateHeading}</div>
 
-      {/* High/Low + icon — updates based on mode */}
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <div className="flex items-baseline gap-2">
@@ -179,7 +177,6 @@ export function DailyDetailContent({
         <Icon className="w-10 h-10 text-primary" strokeWidth={1.5} />
       </div>
 
-      {/* Actual / Feels Like toggle */}
       <div className="grid grid-cols-2 gap-1 p-1 rounded-full bg-black/5">
         <button
           onClick={() => setMode('actual')}
@@ -200,7 +197,6 @@ export function DailyDetailContent({
           : 'What the temperature feels like, accounting for wind and humidity.'}
       </p>
 
-      {/* Hourly temperature chart */}
       <div className="glass-panel p-4 h-48">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={dayHours} margin={{ top: 20, right: 10, left: -20, bottom: 0 }}>
@@ -247,7 +243,6 @@ export function DailyDetailContent({
               }}
             />
 
-            {/* In "Feels Like" mode: show grey actual line underneath */}
             {mode === 'feels' && (
               <Area
                 type="monotone"
@@ -262,7 +257,6 @@ export function DailyDetailContent({
               />
             )}
 
-            {/* Primary series: actual (mode=actual) or feels (mode=feels) */}
             <Area
               type="monotone"
               dataKey={mode === 'actual' ? 'actual' : 'feels'}
@@ -298,7 +292,6 @@ export function DailyDetailContent({
         </ResponsiveContainer>
       </div>
 
-      {/* Precipitation */}
       <div>
         <div className="flex justify-between items-center mb-1">
           <div className="text-lg font-semibold">Precipitation</div>
@@ -325,7 +318,7 @@ export function DailyDetailContent({
               <Tooltip 
                 content={<CustomPrecipTooltip />} 
                 cursor={{ fill: 'hsl(var(--foreground) / 0.05)' }} 
-                />
+              />
               <Bar dataKey="precip" fill="hsl(var(--primary) / 0.67)" radius={[3, 3, 0, 0]} />
               <Bar dataKey="precipAmount" fill="hsl(210, 100%, 50%)" radius={[2, 2, 0, 0]} barSize={6} />
             </BarChart>

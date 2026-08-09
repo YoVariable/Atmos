@@ -24,7 +24,7 @@ export function AirQualityDetailContent({
 }) {
   const band = getAqiBand(airQuality.us_aqi);
   const position = getAqiPosition(airQuality.us_aqi);
-  const pressurePa = current.pressure_msl * 100;
+  const pressurePa = current.surface_pressure * 100;
 
   return (
     <div className="space-y-6">

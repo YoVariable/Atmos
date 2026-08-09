@@ -27,14 +27,21 @@ export function PressureDetailContent({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="text-6xl font-medium tracking-tight font-mono">
-          {formatPressure(current.pressure_msl, settings.pressureUnit)}
+      <div>
+        <div className="flex items-center gap-3">
+          <div className="text-6xl font-medium tracking-tight font-mono">
+            {formatPressure(current.pressure_msl, settings.pressureUnit)}
+          </div>
+          <div className="w-10 h-10 rounded-full bg-black/5 dark:bg-white/5 flex items-center justify-center">
+            <TrendIcon className="w-5 h-5 text-primary" />
+          </div>
         </div>
-        <div className="w-10 h-10 rounded-full bg-black/5 flex items-center justify-center">
-          <TrendIcon className="w-5 h-5 text-primary" />
+        {/* Pushed down slightly further with mt-6 and renamed */}
+        <div className="text-sm text-muted-foreground mt-6 font-medium">
+          Actual Station Pressure: <span className="font-mono text-foreground/90">{formatPressure(current.surface_pressure, settings.pressureUnit)}</span>
         </div>
       </div>
+
       <div className="space-y-1">
         <div className="text-lg font-semibold capitalize">{trend}</div>
         <p className="text-sm text-foreground/70 leading-relaxed">
