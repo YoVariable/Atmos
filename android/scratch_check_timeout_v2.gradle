@@ -1,0 +1,15 @@
+
+buildscript {
+    repositories { google(); mavenCentral() }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.13.0'
+    }
+}
+
+println "Attempting to set timeout..."
+try {
+    com.android.ddmlib.DdmPreferences.setTimeOut(600000)
+    println "Successfully set ADB Timeout to: ${com.android.ddmlib.DdmPreferences.getTimeOut()}"
+} catch (Throwable e) {
+    println "Failed to set timeout: ${e.message}"
+}

@@ -1,0 +1,4 @@
+
+println "Current ADB Timeout: ${com.android.ddmlib.DdmPreferences.getTimeOut()}"
+com.android.ddmlib.DdmPreferences.setTimeOut(600000)
+println "New ADB Timeout: ${com.android.ddmlib.DdmPreferences.getTimeOut()}"
