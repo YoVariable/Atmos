@@ -50,7 +50,7 @@ importers:
         version: 8.5.0(supports-color@5.5.0)
       '@hookform/resolvers':
         specifier: ^3.10.0
-        version: 3.10.0(react-hook-form@7.84.0(react@19.2.4))
+        version: 3.10.0(react-hook-form@7.85.0(react@19.2.4))
       '@radix-ui/react-accordion':
         specifier: ^1.2.4
         version: 1.2.20(@types/react-dom@19.2.4(@types/react@19.2.4))(@types/react@19.2.4)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -203,7 +203,7 @@ importers:
         version: 9.14.0(react@19.2.4)
       react-hook-form:
         specifier: ^7.55.0
-        version: 7.84.0(react@19.2.4)
+        version: 7.85.0(react@19.2.4)
       react-icons:
         specifier: ^5.4.0
         version: 5.7.0(react@19.2.4)
@@ -2951,8 +2951,8 @@ packages:
     peerDependencies:
       react: ^19.2.4
 
-  react-hook-form@7.84.0:
-    resolution: {integrity: sha512-+hWvQP6GLco56mDwrbU4XnHix8t1z90ltZsDIrREl+jnQFQxYLX8oAzqe/Xn8nHpmoXTY5M6oEXrAhbP1qevNQ==}
+  react-hook-form@7.85.0:
+    resolution: {integrity: sha512-U2MTriFXnclmV4rOE20p2DcRFv5WEg3FIcBFOKcOLFHDVvGIMPvLTkTWefUsonmlaVy23khVDxDWym6uJVGOzw==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       react: ^16.8.0 || ^17 || ^18 || ^19
@@ -3803,9 +3803,9 @@ snapshots:
 
   '@floating-ui/utils@0.2.12': {}
 
-  '@hookform/resolvers@3.10.0(react-hook-form@7.84.0(react@19.2.4))':
+  '@hookform/resolvers@3.10.0(react-hook-form@7.85.0(react@19.2.4))':
     dependencies:
-      react-hook-form: 7.84.0(react@19.2.4)
+      react-hook-form: 7.85.0(react@19.2.4)
 
   '@hutson/parse-repository-url@3.0.2': {}
 
@@ -6206,7 +6206,7 @@ snapshots:
       react: 19.2.4
       scheduler: 0.27.0
 
-  react-hook-form@7.84.0(react@19.2.4):
+  react-hook-form@7.85.0(react@19.2.4):
     dependencies:
       react: 19.2.4
 
