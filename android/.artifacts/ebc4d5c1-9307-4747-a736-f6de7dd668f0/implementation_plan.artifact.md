@@ -1,48 +1,34 @@
-# Implementation Plan - Fix com.android.ddmlib.TimeoutException
+# Fix com.android.ddmlib.TimeoutException during APK installation
 
-The user is experiencing a `com.android.ddmlib.TimeoutException` during the `:app:installDebug` task. This error typically occurs when the communication between Gradle (using the `ddmlib` library) and the Android device/emulator exceeds the default timeout period (usually 5 seconds). This is common with slow emulators or larger APKs.
-
-## Proposed Changes
-
-I will increase the ADB timeout settings at the project level to allow more time for the installation process.
-
-### 1. Android App Module Configuration
-
-#### [MODIFY] [app/build.gradle](file:///C:/Users/jpadi/Downloads/Atmos/artifacts/weather-app/android/app/build.gradle)
-Add `adbOptions` to the `android` block to increase the timeout to 10 minutes.
-
-```gradle
-android {
-    ...
-    adbOptions {
-        timeOutInMs = 600000
-    }
-}
-```
-
-### 2. Project Properties Configuration
-
-#### [MODIFY] [gradle.properties](file:///C:/Users/jpadi/Downloads/Atmos/artifacts/weather-app/android/gradle.properties)
-Add a project-wide property to increase the ADB timeout, which can help in certain Gradle/IDE versions.
-
-```properties
-android.adb.timeout=600000
-```
+The `com.android.ddmlib.TimeoutException` occurs during the `:app:installDebug` task when the Android Debug Bridge (ADB) takes too long to install the APK on the device or emulator. This is often caused by unstable ADB connections, slow device responses, or a short default timeout (typically 5 seconds).
 
 ## User Review Required
 
 > [!IMPORTANT]
-> While these changes increase the timeout for the build system, you might still encounter issues if the ADB server itself is hung. If the error persists after these changes, please try restarting the ADB server manually by running:
-> ```bash
-> adb kill-server
-> adb start-server
-> ```
-> And ensure your emulator/device is responsive.
+> The proposed fix increases the ADB installation timeout to 10 minutes (600 seconds) to accommodate slower devices or unstable connections. If the emulator is completely hung, you may still need to restart it manually.
+
+## Proposed Changes
+
+### [Component: Build Configuration]
+
+I will increase the ADB timeout within the Android Gradle Plugin configuration to allow more time for deployment.
+
+#### [MODIFY] [app/build.gradle](file:///C:/Users/jpadi/Downloads/Atmos/artifacts/weather-app/android/app/build.gradle)
+- Add `experimentalProperties` to increase the APK installation timeout.
+
+#### [MODIFY] [build.gradle](file:///C:/Users/jpadi/Downloads/Atmos/artifacts/weather-app/android/build.gradle)
+- Add a script block to set the `DdmPreferences` timeout programmatically for the build process, ensuring the underlying `ddmlib` library waits longer.
+
+### [Component: Environment & Tools]
+
+I will provide steps to refresh the ADB connection and set environment variables for persistent stability across all projects.
 
 ## Verification Plan
 
 ### Automated Tests
-- I will run `./gradlew :app:assembleDebug` to ensure the project still builds correctly with the new configurations. (I won't run `installDebug` as it requires a device and might still time out in this environment if no real device is connected or responding, but I verified an emulator is present).
+- Run `./gradlew clean` to reset the build state.
+- Run `./gradlew :app:installDebug` to verify the installation succeeds with the increased timeout.
 
 ### Manual Verification
-- The user should run `./gradlew :app:installDebug` again to verify the fix.
+- Run `adb reconnect` to ensure the device is responsive.
+- Verify the app is successfully installed and launched on the emulator.

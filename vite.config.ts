@@ -60,19 +60,6 @@ export default defineConfig({
     dedupe: ['react', 'react-dom'],
   },
   root: path.resolve(import.meta.dirname),
-  optimizeDeps: {
-      include: [
-        'react',
-        'react-dom',
-        '@tanstack/react-query',
-        'wouter',
-        'lucide-react',
-        'suncalc',
-        'geomag',
-        'recharts',
-      ],
-      force: true,
-    },
   build: {
     outDir: path.resolve(import.meta.dirname, 'dist/public'),
     emptyOutDir: true,
@@ -83,19 +70,12 @@ export default defineConfig({
     host: '0.0.0.0',
     allowedHosts: true,
     fs: {
-      strict: false,
-    },
-    watch: {
-      usePolling: true,
-      interval: 250, // Balanced interval to prevent Windows socket thrashing and high CPU usage
+      strict: true,
     },
   },
   preview: {
     port,
     host: '0.0.0.0',
     allowedHosts: true,
-    headers: {
-    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-    },
   },
 });
