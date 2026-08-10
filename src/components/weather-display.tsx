@@ -327,7 +327,7 @@ export function WeatherDisplay({ location, isActive }: WeatherDisplayProps) {
         </div>
       </section>
 
-      {/* 7-Day Forecast */}
+{/* 7-Day Forecast */}
       <section className="glass-panel p-4 sm:p-5">
         <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-foreground/60 mb-2 border-b border-black/5 pb-3">
           <CalendarDays className="w-4 h-4" />
@@ -338,68 +338,70 @@ export function WeatherDisplay({ location, isActive }: WeatherDisplayProps) {
           const date = parseLocalDateString(timeStr);
           const dayName = i === 0 ? 'Today' : date.toLocaleDateString('en-GB', { weekday: 'short' });
 
+          // Extract the WMO code for day `i` instead of using the top-level `displayCode`
+          const dayCode = daily.weather_code?.[i] ?? daily.weather_code?.[i] ?? displayCode;
           const effectiveDayFlag = (i === 0 && isSpecialSun) ? 1 : (i === 0 ? current.is_day : 1);
-          const Icon = getWeatherIcon(displayCode, effectiveDayFlag);
+          const Icon = getWeatherIcon(dayCode, effectiveDayFlag);
 
-        const high = daily.temperature_2m_max[i];
-        const low = daily.temperature_2m_min[i];
-        const precip = daily.precipitation_probability_max[i];
+          const high = daily.temperature_2m_max[i];
+          const low = daily.temperature_2m_min[i];
+          const precip = daily.precipitation_probability_max[i];
 
-        const isToday = i === 0;
-        const { leftPercent, widthPercent, showCurrentDot, dotPercent } = calculateBarMetrics(
-          low,
-          high,
-          globalMin,
-          globalMax,
-          isToday,
-          current.temperature_2m
-        );
+          const isToday = i === 0;
+          const { leftPercent, widthPercent, showCurrentDot, dotPercent } = calculateBarMetrics(
+            low,
+            high,
+            globalMin,
+            globalMax,
+            isToday,
+            current.temperature_2m
+          );
 
-            return (
-              <DetailSheet key={timeStr} title="Conditions" icon={Cloud} trigger={
-                <button className="flex items-center justify-between py-2 border-b border-black/5 last:border-0 w-full text-left active:opacity-70 transition-opacity">
-                  <div className="w-16 font-semibold text-[15px]">{dayName}</div>
-                  <div className="flex items-center gap-2 flex-1 justify-center">
-                    <Icon className="w-5 h-5 text-foreground/80" strokeWidth={1.5} />
-                    {precip > 20 ? (
-                      <span className="text-xs font-bold text-sky-500 w-8 text-left">{precip}%</span>
-                    ) : (
-                      <span className="w-8" />
-                    )}
-                  </div>
-                  <div className="flex items-center justify-end gap-4 w-48">
-                    <span className="text-[15px] font-semibold text-foreground/60 w-10 text-right">
-                      {formatFelsius(low)}
-                    </span>
+          return (
+            <DetailSheet key={timeStr} title="Conditions" icon={Cloud} trigger={
+              <button className="flex items-center justify-between py-2 border-b border-black/5 last:border-0 w-full text-left active:opacity-70 transition-opacity">
+                <div className="w-16 font-semibold text-[15px]">{dayName}</div>
+                <div className="flex items-center gap-2 flex-1 justify-center">
+                  <Icon className="w-5 h-5 text-foreground/80" strokeWidth={1.5} />
+                  {precip > 20 ? (
+                    <span className="text-xs font-bold text-sky-500 w-8 text-left">{precip}%</span>
+                  ) : (
+                    <span className="w-8" />
+                  )}
+                </div>
+                <div className="flex items-center justify-end gap-4 w-48">
+                  <span className="text-[15px] font-semibold text-foreground/60 w-10 text-right">
+                    {formatFelsius(low)}
+                  </span>
 
-                    <div className="flex-1 h-1.5 rounded-full bg-black/10 dark:bg-white/10 relative">
-                      <div
-                        className="absolute h-full rounded-full"
-                        style={{
-                          left: `${leftPercent}%`,
-                          width: `${widthPercent}%`,
-                          background: getFelsiusBarGradient(low, high),
-                        }}
-                      >
-                        {showCurrentDot && (
-                          <div
-                            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-2.5 h-2.5 rounded-full bg-white shadow-md border border-black/20 z-10"
-                            style={{ left: `${dotPercent}%` }}
-                          />
-                        )}
-                      </div>
+                  <div className="flex-1 h-1.5 rounded-full bg-black/10 dark:bg-white/10 relative">
+                    <div
+                      className="absolute h-full rounded-full"
+                      style={{
+                        left: `${leftPercent}%`,
+                        width: `${widthPercent}%`,
+                        background: getFelsiusBarGradient(low, high),
+                      }}
+                    >
+                      {showCurrentDot && (
+                        <div
+                          className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-2.5 h-2.5 rounded-full bg-white shadow-md border border-black/20 z-10"
+                          style={{ left: `${dotPercent}%` }}
+                        />
+                      )}
                     </div>
-
-                    <span className="text-[15px] font-semibold text-foreground w-10 text-right">
-                      {formatFelsius(high)}
-                    </span>
                   </div>
-                </button>
-              }>
-                <DailyDetailContent daily={daily} hourly={hourly} initialDayIndex={i} current={data.current} dominantCode={displayCode} />
-              </DetailSheet>
-            );
-          })}
+
+                  <span className="text-[15px] font-semibold text-foreground w-10 text-right">
+                    {formatFelsius(high)}
+                  </span>
+                </div>
+              </button>
+            }>
+              <DailyDetailContent daily={daily} hourly={hourly} initialDayIndex={i} current={data.current} dominantCode={dayCode} />
+            </DetailSheet>
+          );
+        })}
         </div>
       </section>
 
