@@ -161,6 +161,9 @@ export function WeatherDisplay({ location, isActive }: WeatherDisplayProps) {
   const isMidnightSun = daily.daylight_duration[0] > 86340;
   const isSpecialSun = isPolarNight || isMidnightSun;
 
+  // Determine card primary preview order for extreme latitudes vs standard days
+  const showSunsetPrimary = isMidnightSun || (!isPolarNight && isDay);
+
   const currentHourStartMs = new Date(current.time).setHours(new Date(current.time).getHours(), 0, 0, 0);
   let startIdx = hourly.time.findIndex((t) => new Date(t).getTime() >= currentHourStartMs);
   if (startIdx === -1) startIdx = 0;
@@ -446,23 +449,23 @@ export function WeatherDisplay({ location, isActive }: WeatherDisplayProps) {
 
         <DetailSheet 
           title="Sunrise & Sunset" 
-          icon={isDay ? Sunset : Sunrise}
+          icon={showSunsetPrimary ? Sunset : Sunrise}
           trigger={
             <button className={CARD_TRIGGER_CLASS}>
               <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-foreground/60 mb-2">
-                {isDay ? <Sunset className="w-4 h-4" /> : <Sunrise className="w-4 h-4" />}
-                <span>{isDay ? "Sunset" : "Sunrise"}</span>
+                {showSunsetPrimary ? <Sunset className="w-4 h-4" /> : <Sunrise className="w-4 h-4" />}
+                <span>{showSunsetPrimary ? "Sunset" : "Sunrise"}</span>
               </div>
               <div className="mt-auto pt-4 space-y-4">
                 <div className="text-3xl font-medium tracking-tight relative -top-1">
                   {isSpecialSun 
                   ? '>7 days' 
-                  : formatTime(isDay ? sunset : sunrise, settings.timeFormat)}
+                  : formatTime(showSunsetPrimary ? sunset : sunrise, settings.timeFormat)}
                 </div>
                 <div className="text-[15px] font-semibold text-foreground/80">
                   <p className="text-sm text-foreground/60">
-                    {isDay ? "Sunrise: " : "Sunset: "} 
-                    {isSpecialSun ? '>7 days' : formatTime(isDay ? sunrise : sunset, settings.timeFormat)}
+                    {showSunsetPrimary ? "Sunrise: " : "Sunset: "} 
+                    {isSpecialSun ? '>7 days' : formatTime(showSunsetPrimary ? sunrise : sunset, settings.timeFormat)}
                   </p>
                 </div>
               </div>
