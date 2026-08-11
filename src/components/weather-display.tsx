@@ -25,6 +25,7 @@ import {
   convertPressure,
   pressureUnitLabel,
   FELSIUS_UNIT,
+  formatPressureValue,
 } from '@/lib/units';
 
 import {
@@ -418,12 +419,12 @@ export function WeatherDisplay({ location, isActive }: WeatherDisplayProps) {
                 const band = getAqiBand(airQuality.us_aqi);
                 const position = getAqiPosition(airQuality.us_aqi);
                 return (
-                  <div className="mt-auto space-y-4 pt-4">
+                  <div className="mt-auto space-y-4 pt-4 w-full"> {/* Added w-full here */}
                     <div className="space-y-1">
                       <div className="text-3xl font-medium tracking-tight">{Math.round(airQuality.us_aqi)}</div>
                       <div className="text-[15px] font-semibold leading-tight">{band.label}</div>
                     </div>
-                    <div className="relative h-1.5 rounded-full bg-black/5 overflow-hidden">
+                    <div className="relative h-1.5 rounded-full bg-black/5 overflow-hidden w-full"> {/* Added w-full here */}
                       <div
                         className="absolute inset-0"
                         style={{
@@ -488,18 +489,29 @@ export function WeatherDisplay({ location, isActive }: WeatherDisplayProps) {
               <Wind className="w-4 h-4" />
               <span>Wind</span>
             </div>
-            <div className="mt-auto pt-4 flex items-center justify-between">
+            {/* Added w-full and justify-between to lock the edges */}
+            <div className="mt-auto pt-4 flex items-center justify-between w-full"> 
               <div className="text-2xl sm:text-3xl font-medium tracking-tight font-mono">
                 {convertWindSpeed(current.wind_speed_10m, settings.windUnit)}
                 <span className="text-sm sm:text-base font-semibold text-foreground/60 ml-1 font-sans">
                   {windUnitLabel(settings.windUnit)}
                 </span>
               </div>
-              <div className="w-10 h-10 rounded-full border border-black/10 flex items-center justify-center bg-black/5 shadow-inner">
-                <Navigation
+                <div className="w-10 h-10 rounded-full border border-black/10 flex items-center justify-center bg-black/5 shadow-inner shrink-0 relative">
+                <svg
                   className="w-5 h-5 text-foreground/80"
-                  style={{ transform: `rotate(${current.wind_direction_10m + 180 - 45}deg)` }}
-                />
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  style={{
+                    transform: `rotate(${current.wind_direction_10m + 180}deg)`,
+                  }}
+                >
+                  <polygon points="12 2 19 21 12 17 5 21 12 2" />
+                </svg>
               </div>
             </div>
           </button>
@@ -604,7 +616,7 @@ export function WeatherDisplay({ location, isActive }: WeatherDisplayProps) {
             </div>
             <div className="mt-auto pt-4">
               <div className="text-3xl font-medium tracking-tight font-mono">
-                {convertPressure(current.pressure_msl, settings.pressureUnit)}
+                {formatPressureValue(current.pressure_msl, settings.pressureUnit)}
                 <span className="text-base font-semibold text-foreground/60 ml-1 font-sans">
                   {pressureUnitLabel(settings.pressureUnit)}
                 </span>

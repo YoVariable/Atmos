@@ -1,4 +1,3 @@
-import { Navigation } from 'lucide-react';
 import type { CurrentWeather } from '@/lib/weather-api';
 import { formatWindSpeed } from '@/lib/units';
 import { getWindDirectionLabel, getWindDescription } from '@/lib/weather-helpers';
@@ -10,9 +9,8 @@ export function WindDetailContent({ current }: { current: CurrentWeather }) {
   const description = getWindDescription(current.wind_speed_10m);
   
   // Meteorological wind direction = degrees the wind comes FROM.
-  // Add 180° so the arrow points back toward the source (matching Apple Weather convention).
-  // Subtract 45° to account for Lucide Navigation icon's default top-right pointing orientation.
-  const arrowRotation = current.wind_direction_10m + 180 - 45;
+  // Add 180° so the arrow points back toward the source.
+  const arrowRotation = current.wind_direction_10m + 180;
 
   return (
     <div className="space-y-6">
@@ -39,10 +37,20 @@ export function WindDetailContent({ current }: { current: CurrentWeather }) {
               {label}
             </span>
           ))}
-          <Navigation
+          <svg
             className="w-7 h-7 text-primary"
-            style={{ transform: `rotate(${arrowRotation}deg)` }}
-          />
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{
+              transform: `rotate(${arrowRotation}deg)`,
+            }}
+          >
+            <polygon points="12 2 19 21 12 17 5 21 12 2" />
+          </svg>
         </div>
       </div>
 

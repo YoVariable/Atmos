@@ -1,6 +1,6 @@
 import type { AirQuality, CurrentWeather } from '@/lib/weather-api';
 import { getAqiBand, getAqiPosition } from '@/lib/aqi';
-import { convertUgM3ToPpblv, GAS_MOLECULAR_WEIGHTS } from '@/lib/units';
+import { convertUgM3ToGrFt3, convertUgM3ToPpblv, GAS_MOLECULAR_WEIGHTS } from '@/lib/units';
 
 const POLLUTANTS: { key: keyof AirQuality; label: string; gasKey?: keyof typeof GAS_MOLECULAR_WEIGHTS }[] = [
   { key: 'pm2_5', label: 'PM2.5' },
@@ -85,8 +85,7 @@ export function AirQualityDetailContent({
               </div>
               <div className="text-lg font-medium font-mono">
                 {activeUnit === 'gr/ft³' ? (() => {
-                  // Conversion factor from ug/m3 to grains/ft³
-                  const grainsValue = rawValue * 0.000000436996;
+                  const grainsValue = convertUgM3ToGrFt3(rawValue);
                   const scientific = grainsValue.toExponential(2).split('e');
                   const mantissa = scientific[0];
                   const exponent = parseInt(scientific[1]);

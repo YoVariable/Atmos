@@ -68,12 +68,13 @@ export function convertUgM3ToPpblv(
 
 // ─── Wind speed ──────────────────────────────────────────────────────────────
 
-export type WindUnit = 'kmh' | 'ms' | 'mph' | 'kn' | 'bft';
+export type WindUnit = 'kmh' | 'ms' | 'mph' | 'fts' | 'kn' | 'bft';
 
 export const WIND_UNIT_OPTIONS: { value: WindUnit; label: string; example: string }[] = [
   { value: 'kmh',  label: 'km/h',  example: 'Kilometres per hour' },
   { value: 'ms',   label: 'm/s',   example: 'Metres per second' },
   { value: 'mph',  label: 'mph',   example: 'Miles per hour' },
+  { value: 'fts',  label: 'ft/s',  example: 'Feet per second' },
   { value: 'kn',   label: 'kn',    example: 'Knots' },
   { value: 'bft',  label: 'Bft',   example: 'Beaufort scale' },
 ];
@@ -97,9 +98,10 @@ function beaufortFromKmh(kmh: number): number {
 export function convertWindSpeed(kmh: number, unit: WindUnit): number {
   switch (unit) {
     case 'kmh': return Math.round(kmh);
-    case 'ms':  return Math.round((kmh / 3.6) * 10) / 10;
-    case 'mph': return Math.round(kmh * 0.621371);
-    case 'kn':  return Math.round(kmh * 0.539957);
+    case 'ms':  return Math.round((kmh / 3.6) * 10) / 10;         // Maintains 0.1 m/s resolution
+    case 'mph': return Math.round(kmh / 1.609344);                // Exact NIST international mile
+    case 'fts': return Math.round(((kmh / 1.09728) * 10)) / 10;   // Maintains 0.1 ft/s resolution
+    case 'kn':  return Math.round(kmh / 1.852);                   // Exact ISO nautical mile
     case 'bft': return beaufortFromKmh(kmh);
   }
 }
@@ -122,7 +124,7 @@ export const DISTANCE_UNIT_OPTIONS: { value: DistanceUnit; label: string; exampl
   { value: 'mi', label: 'mi', example: 'Miles' },
 ];
 
-/** API visibility is in metres. */
+/** API visibility is in metres. (1 mile = 1609.344 m exactly) */
 export function formatVisibility(meters: number, unit: DistanceUnit = 'km'): string {
   if (unit === 'mi') return `${(meters / 1609.344).toFixed(1)} mi`;
   return `${(meters / 1000).toFixed(1)} km`;
@@ -130,7 +132,7 @@ export function formatVisibility(meters: number, unit: DistanceUnit = 'km'): str
 
 // ─── Pressure ────────────────────────────────────────────────────────────────
 
-export type PressureUnit = 'hPa' | 'kPa' | 'mbar' | 'mmHg' | 'inHg';
+export type PressureUnit = 'hPa' | 'kPa' | 'mbar' | 'mmHg' | 'inHg' | 'Pa' | 'atm' | 'psi';
 
 export const PRESSURE_UNIT_OPTIONS: { value: PressureUnit; label: string; example: string }[] = [
   { value: 'hPa',  label: 'hPa',  example: 'Hectopascals (standard)' },
@@ -138,15 +140,25 @@ export const PRESSURE_UNIT_OPTIONS: { value: PressureUnit; label: string; exampl
   { value: 'mbar', label: 'mbar', example: 'Millibars' },
   { value: 'mmHg', label: 'mmHg', example: 'Millimetres of mercury' },
   { value: 'inHg', label: 'inHg', example: 'Inches of mercury' },
+  { value: 'Pa',   label: 'Pa',   example: 'Pascals (SI base unit)' },
+  { value: 'atm',  label: 'atm',  example: 'Standard atmospheres' },
+  { value: 'psi',  label: 'psi',  example: 'Pounds per square inch' },
 ];
 
+/**
+ * Converts API pressure (in hPa / mbar) to raw unrounded target unit.
+ * Uses exact NIST/ISO constants to maintain full 64-bit float precision.
+ */
 export function convertPressure(hpa: number, unit: PressureUnit): number {
   switch (unit) {
-    case 'hPa':  return Math.round(hpa);
-    case 'kPa':  return Math.round((hpa / 10) * 100) / 100;
-    case 'mbar': return Math.round(hpa);
-    case 'mmHg': return Math.round(hpa * 0.750062);
-    case 'inHg': return Math.round(hpa * 0.0295301 * 100) / 100;
+    case 'hPa':  return hpa;
+    case 'mbar': return hpa;
+    case 'kPa':  return hpa / 10;
+    case 'Pa':   return hpa * 100;
+    case 'mmHg': return hpa / 1.33322387415;
+    case 'inHg': return hpa / 33.86388640341;
+    case 'atm':  return hpa / 1013.25;
+    case 'psi':  return hpa / 68.94757293168362;
   }
 }
 
@@ -154,9 +166,31 @@ export function pressureUnitLabel(unit: PressureUnit): string {
   return unit;
 }
 
-/** API pressure is in hPa. */
+/** Formats API pressure (hPa) into a standardized string with appropriate decimal precision. */
+export function formatPressureValue(hpa: number, unit: PressureUnit): string {
+  const val = convertPressure(hpa, unit);
+
+  switch (unit) {
+    case 'inHg':
+    case 'kPa':
+    case 'psi':
+      return val.toFixed(2);
+    case 'hPa':
+    case 'mbar':
+    case 'mmHg':
+      return val.toFixed(1);
+    case 'atm':
+      return val.toFixed(3);
+    case 'Pa':
+      return Math.round(val)
+        .toString()
+        .replace(/\B(?=(\d{3})+(?!\d))/g, '\u2009');
+  }
+}
+
+/** Formats API pressure into a standardized string with its unit label. */
 export function formatPressure(hpa: number, unit: PressureUnit = 'hPa'): string {
-  return `${convertPressure(hpa, unit)} ${pressureUnitLabel(unit)}`;
+  return `${formatPressureValue(hpa, unit)}\u2009${pressureUnitLabel(unit)}`;
 }
 
 // ─── Precipitation ───────────────────────────────────────────────────────────
@@ -168,7 +202,7 @@ export const PRECIPITATION_UNIT_OPTIONS: { value: PrecipitationUnit; label: stri
   { value: 'in',    label: 'in',     example: 'Inches' },
 ];
 
-/** API precipitation is in mm. */
+/** API precipitation is in mm. (1 inch = 25.4 mm exactly) */
 export function formatPrecipitation(mm: number, unit: PrecipitationUnit = 'mm_cm'): string {
   if (unit === 'in') return `${(mm / 25.4).toFixed(2)} in`;
   if (mm >= 10) return `${(mm / 10).toFixed(1)} cm`;
@@ -228,6 +262,16 @@ export const COORDINATE_FORMAT_OPTIONS: { value: CoordinateFormat; label: string
   { value: 'dms', label: 'DMS (° \' \")' },
   { value: 'decimal', label: 'Decimal Degrees (°)' },
 ];
+
+// ─── Air Pollution ───────────────────────────────────────────────────────────
+
+/**
+ * Converts micrograms per cubic metre (µg/m³) to grains per cubic foot (gr/ft³).
+ * Uses exact international standard definitions for mass and length.
+ */
+export function convertUgM3ToGrFt3(ugm3: number): number {
+  return (ugm3 * 0.028316846592) / 64798.91;
+}
 
 // ─── Backward-compat aliases ─────────────────────────────────────────────────
 
