@@ -19,7 +19,7 @@ export function InfoManager() {
         <div className="space-y-6 text-sm text-muted-foreground">
           {/* Atmos Info */}
           <div>
-            <h4 className="font-semibold text-foreground mb-1">Version 1.3.1</h4>
+            <h4 className="font-semibold text-foreground mb-1">Version 1.3.2</h4>
             <p>Atmos provides precision weather metrics for the modern enthusiast. Designed for speed, clarity, and a unique perspective on local conditions.</p>
           </div>
 

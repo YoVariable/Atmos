@@ -37,11 +37,31 @@ function isMidnightSentinel(isoStr: string): boolean {
   return d.getHours() === 0 && d.getMinutes() === 0;
 }
 
+/** Find the day index offset of the first real (non-sentinel) solar event. */
+function findFirstRealEventIndex(eventArray: string[]): number {
+  for (let i = 0; i < eventArray.length; i++) {
+    if (!isMidnightSentinel(eventArray[i])) {
+      return i;
+    }
+  }
+  return -1;
+}
+
 /** Find the first non-sentinel sunrise in the forecast array. */
 function findNextRealSunrise(daily: DailyForecast): { date: Date; dateStr: string } | null {
   for (let i = 0; i < daily.sunrise.length; i++) {
     if (!isMidnightSentinel(daily.sunrise[i])) {
       return { date: new Date(daily.sunrise[i]), dateStr: daily.time[i] };
+    }
+  }
+  return null;
+}
+
+/** Find the first non-sentinel sunset in the forecast array. */
+function findNextRealSunset(daily: DailyForecast): { date: Date; dateStr: string } | null {
+  for (let i = 0; i < daily.sunset.length; i++) {
+    if (!isMidnightSentinel(daily.sunset[i])) {
+      return { date: new Date(daily.sunset[i]), dateStr: daily.time[i] };
     }
   }
   return null;
@@ -102,10 +122,39 @@ export function SunriseSunsetDetailContent({
   const daylightHours = Math.floor(daylightMinutes / 60);
   const daylightRemMinutes = Math.round(daylightMinutes % 60);
 
+  // Dynamic Sunrise/Sunset Labels for Transitions
+  let sunriseLabel = formatTime(sunrise, settings.timeFormat);
+  let sunsetLabel = formatTime(sunset, settings.timeFormat);
+
+  if (isPolarNight) {
+    const sunriseIdx = findFirstRealEventIndex(daily.sunrise);
+    sunriseLabel = (sunriseIdx > 0 && sunriseIdx <= 7)
+      ? `${sunriseIdx} ${sunriseIdx === 1 ? 'day' : 'days'}`
+      : '>7 days';
+
+    const sunsetIdx = findFirstRealEventIndex(daily.sunset);
+    sunsetLabel = (sunsetIdx > 0 && sunsetIdx <= 7)
+      ? `${sunsetIdx} ${sunsetIdx === 1 ? 'day' : 'days'}`
+      : '>7 days';
+  } else if (isMidnightSun) {
+    const sunsetIdx = findFirstRealEventIndex(daily.sunset);
+    sunsetLabel = (sunsetIdx > 0 && sunsetIdx <= 7)
+      ? `${sunsetIdx} ${sunsetIdx === 1 ? 'day' : 'days'}`
+      : '>7 days';
+
+    const sunriseIdx = findFirstRealEventIndex(daily.sunrise);
+    sunriseLabel = (sunriseIdx > 0 && sunriseIdx <= 7)
+      ? `${sunriseIdx} ${sunriseIdx === 1 ? 'day' : 'days'}`
+      : '>7 days';
+  }
+
   // Countdown / special message
   let countdownLabel = '';
   if (isMidnightSun) {
-    countdownLabel = 'No sunset today.';
+    const next = findNextRealSunset(daily);
+    countdownLabel = next
+      ? `Sunset on ${formatShortDate(next.dateStr, settings.longDateFormat)}`
+      : 'No sunset today.';
   } else if (isPolarNight) {
     const next = findNextRealSunrise(daily);
     countdownLabel = next
@@ -128,9 +177,6 @@ export function SunriseSunsetDetailContent({
     hours: Math.round(m.daylightHours * 10) / 10,
   }));
   const currentPoint = chartData[currentMonth];
-
-  const sunriseLabel = isSpecialSun ? '>7 days' : formatTime(sunrise, settings.timeFormat);
-  const sunsetLabel  = isSpecialSun ? '>7 days' : formatTime(sunset,  settings.timeFormat);
 
   return (
     <div className="space-y-8">

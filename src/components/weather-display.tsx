@@ -165,6 +165,29 @@ export function WeatherDisplay({ location, isActive }: WeatherDisplayProps) {
   // Determine card primary preview order for extreme latitudes vs standard days
   const showSunsetPrimary = isMidnightSun || (!isPolarNight && isDay);
 
+  const getEventLabel = (eventArray: string[], fallbackDate: Date) => {
+    if (!isSpecialSun) return formatTime(fallbackDate, settings.timeFormat);
+
+    const idx = eventArray.findIndex((timeStr) => {
+      const d = new Date(timeStr);
+      return d.getHours() !== 0 || d.getMinutes() !== 0;
+    });
+
+    return idx > 0 && idx <= 7
+      ? `${idx} ${idx === 1 ? 'day' : 'days'}`
+      : '>7 days';
+  };
+
+  const primaryLabel = getEventLabel(
+    showSunsetPrimary ? daily.sunset : daily.sunrise,
+    showSunsetPrimary ? sunset : sunrise
+  );
+
+  const secondaryLabel = getEventLabel(
+    showSunsetPrimary ? daily.sunrise : daily.sunset,
+    showSunsetPrimary ? sunrise : sunset
+  );
+
   const currentHourStartMs = new Date(current.time).setHours(new Date(current.time).getHours(), 0, 0, 0);
   let startIdx = hourly.time.findIndex((t) => new Date(t).getTime() >= currentHourStartMs);
   if (startIdx === -1) startIdx = 0;
@@ -328,7 +351,7 @@ export function WeatherDisplay({ location, isActive }: WeatherDisplayProps) {
         </div>
       </section>
 
-{/* 7-Day Forecast */}
+      {/* 7-Day Forecast */}
       <section className="glass-panel p-4 sm:p-5">
         <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-foreground/60 mb-2 border-b border-black/5 pb-3">
           <CalendarDays className="w-4 h-4" />
@@ -339,7 +362,6 @@ export function WeatherDisplay({ location, isActive }: WeatherDisplayProps) {
           const date = parseLocalDateString(timeStr);
           const dayName = i === 0 ? 'Today' : date.toLocaleDateString('en-GB', { weekday: 'short' });
 
-          // Extract the WMO code for day `i` instead of using the top-level `displayCode`
           const dayCode = daily.weather_code?.[i] ?? daily.weather_code?.[i] ?? displayCode;
           const effectiveDayFlag = (i === 0 && isSpecialSun) ? 1 : (i === 0 ? current.is_day : 1);
           const Icon = getWeatherIcon(dayCode, effectiveDayFlag);
@@ -419,12 +441,12 @@ export function WeatherDisplay({ location, isActive }: WeatherDisplayProps) {
                 const band = getAqiBand(airQuality.us_aqi);
                 const position = getAqiPosition(airQuality.us_aqi);
                 return (
-                  <div className="mt-auto space-y-4 pt-4 w-full"> {/* Added w-full here */}
+                  <div className="mt-auto space-y-4 pt-4 w-full">
                     <div className="space-y-1">
                       <div className="text-3xl font-medium tracking-tight">{Math.round(airQuality.us_aqi)}</div>
                       <div className="text-[15px] font-semibold leading-tight">{band.label}</div>
                     </div>
-                    <div className="relative h-1.5 rounded-full bg-black/5 overflow-hidden w-full"> {/* Added w-full here */}
+                    <div className="relative h-1.5 rounded-full bg-black/5 overflow-hidden w-full">
                       <div
                         className="absolute inset-0"
                         style={{
@@ -461,14 +483,12 @@ export function WeatherDisplay({ location, isActive }: WeatherDisplayProps) {
               </div>
               <div className="mt-auto pt-4 space-y-4">
                 <div className="text-3xl font-medium tracking-tight relative -top-1">
-                  {isSpecialSun 
-                  ? '>7 days' 
-                  : formatTime(showSunsetPrimary ? sunset : sunrise, settings.timeFormat)}
+                  {primaryLabel}
                 </div>
                 <div className="text-[15px] font-semibold text-foreground/80">
                   <p className="text-sm text-foreground/60">
                     {showSunsetPrimary ? "Sunrise: " : "Sunset: "} 
-                    {isSpecialSun ? '>7 days' : formatTime(showSunsetPrimary ? sunrise : sunset, settings.timeFormat)}
+                    {secondaryLabel}
                   </p>
                 </div>
               </div>
@@ -489,7 +509,6 @@ export function WeatherDisplay({ location, isActive }: WeatherDisplayProps) {
               <Wind className="w-4 h-4" />
               <span>Wind</span>
             </div>
-            {/* Added w-full and justify-between to lock the edges */}
             <div className="mt-auto pt-4 flex items-center justify-between w-full"> 
               <div className="text-2xl sm:text-3xl font-medium tracking-tight font-mono">
                 {convertWindSpeed(current.wind_speed_10m, settings.windUnit)}
@@ -497,7 +516,7 @@ export function WeatherDisplay({ location, isActive }: WeatherDisplayProps) {
                   {windUnitLabel(settings.windUnit)}
                 </span>
               </div>
-                <div className="w-10 h-10 rounded-full border border-black/10 flex items-center justify-center bg-black/5 shadow-inner shrink-0 relative">
+              <div className="w-10 h-10 rounded-full border border-black/10 flex items-center justify-center bg-black/5 shadow-inner shrink-0 relative">
                 <svg
                   className="w-5 h-5 text-foreground/80"
                   viewBox="0 0 24 24"
@@ -554,10 +573,13 @@ export function WeatherDisplay({ location, isActive }: WeatherDisplayProps) {
                 </div>
               </div>
               
-              <div className="relative w-full h-1.5 rounded-full mt-4 bg-gradient-to-r from-green-400 via-yellow-400 to-purple-500 opacity-80">
+              {/* Track Container */}
+              <div className="relative w-full h-1.5 rounded-full mt-4 bg-gradient-to-r from-green-500 via-yellow-400 via-orange-500 via-red-500 to-purple-600 opacity-90">
                 <div 
-                  className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-[0_0_4px_rgba(0,0,0,0.3)] border-2 border-white/50"
-                  style={{ left: `${Math.min((currentUvValue / 11) * 100, 100)}%` }}
+                  className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 bg-white rounded-full shadow-[0_0_4px_rgba(0,0,0,0.3)] border-2 border-white/50 transition-all duration-300"
+                  style={{ 
+                    left: `clamp(0.375rem, ${Math.min((Math.max(currentUvValue, 0) / 11) * 100, 100)}%, calc(100% - 0.375rem))` 
+                  }}
                 />
               </div>
             </button>
