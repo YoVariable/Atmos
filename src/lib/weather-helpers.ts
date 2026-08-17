@@ -7,26 +7,44 @@
 
 import { celsiusToFelsius } from './units';
 
-import type { HourlyForecast, CurrentWeather } from './weather-api';
+import {
+  HourlyForecast,
+  CurrentWeather,
+  DailyForecast,
+  TRACE_PRECIPITATION_THRESHOLD,
+  DAILY_PRECIP_VOLUME_THRESHOLD,
+  HEAVY_HOURLY_RATE_THRESHOLD,
+} from './weather-api';
 
 /**
  * Determines Today's effective weather code by synchronizing the current hour's
- * raw condition with the 0.2 mm precipitation threshold rule.
+ * raw condition with the TRACE_PRECIPITATION_THRESHOLD rule.
  */
-export function getTodayEffectiveCode(hourly: HourlyForecast, current: CurrentWeather, startIdx: number): number {
-  const rawCurrentCode = (startIdx !== -1 && hourly.weather_code[startIdx] !== undefined)
-    ? hourly.weather_code[startIdx]
-    : current?.weather_code ?? 3;
+export function getTodayEffectiveCode(
+  hourly: HourlyForecast,
+  current: CurrentWeather,
+  startIdx: number
+): number {
+  const rawCurrentCode =
+    startIdx !== -1 && hourly.weather_code[startIdx] !== undefined
+      ? hourly.weather_code[startIdx]
+      : current?.weather_code ?? 3;
 
-  const currentPrecip = (startIdx !== -1 && hourly.precipitation && hourly.precipitation[startIdx] !== undefined)
-    ? hourly.precipitation[startIdx]
-    : 0;
+  const currentPrecip =
+    startIdx !== -1 &&
+    hourly.precipitation &&
+    hourly.precipitation[startIdx] !== undefined
+      ? hourly.precipitation[startIdx]
+      : 0;
 
-  const currentHasMeasurableRain = currentPrecip >= 0.2;
+  const currentHasMeasurableRain = currentPrecip >= TRACE_PRECIPITATION_THRESHOLD;
 
   let displayCode = rawCurrentCode;
-  if ((!currentHasMeasurableRain && isPrecipitationCode(rawCurrentCode)) ||
-      (currentPrecip >= 0.2 && (rawCurrentCode === 0 || rawCurrentCode === 1))) {
+  if (
+    (!currentHasMeasurableRain && isPrecipitationCode(rawCurrentCode)) ||
+    (currentPrecip >= TRACE_PRECIPITATION_THRESHOLD &&
+      (rawCurrentCode === 0 || rawCurrentCode === 1))
+  ) {
     displayCode = 3; // Overcast fallback for trace/sub-measurable precipitation
   }
 
@@ -39,7 +57,7 @@ const COMPASS_LABELS = [
 ];
 
 export function getWindDirectionLabel(degrees: number): string {
-  const index = Math.round(((degrees % 360) / 22.5)) % 16;
+  const index = Math.round((degrees % 360) / 22.5) % 16;
   return COMPASS_LABELS[(index + 16) % 16];
 }
 
@@ -53,13 +71,14 @@ export function getWindDescription(kmh: number): string {
   return 'Severe gale';
 }
 
-export const isPrecipitationCode = (weatherCode: number) => [
-  51, 53, 55, 56, 57, // Drizzle & Freezing Drizzle
-  61, 63, 65, 66, 67, // Rain & Freezing Rain
-  71, 73, 75, 77,     // Snow & Snow Grains
-  80, 81, 82,         // Rain Showers
-  85, 86              // Snow Showers
-].includes(weatherCode);
+export const isPrecipitationCode = (weatherCode: number) =>
+  [
+    51, 53, 55, 56, 57, // Drizzle & Freezing Drizzle
+    61, 63, 65, 66, 67, // Rain & Freezing Rain
+    71, 73, 75, 77,     // Snow & Snow Grains
+    80, 81, 82,         // Rain Showers
+    85, 86,             // Snow Showers
+  ].includes(weatherCode);
 
 export interface VisibilityBand {
   label: string;
@@ -101,52 +120,84 @@ export function getPressureTrendDescription(trend: PressureTrend): string {
 export type WmoCode = number;
 
 export interface HourlyWeatherData {
-  time: string[];         // e.g. ["2026-07-30T00:00", "2026-07-30T01:00", ...]
+  time: string[]; // e.g. ["2026-07-30T00:00", "2026-07-30T01:00", ...]
   weather_code: WmoCode[];
 }
 
 export interface DailyWeatherData {
-  time: string[];         // e.g. ["2026-07-30"]
-  sunrise: string[];      // e.g. ["2026-07-30T06:05"]
-  sunset: string[];       // e.g. ["2026-07-30T19:54"]
+  time: string[]; // e.g. ["2026-07-30"]
+  sunrise: string[]; // e.g. ["2026-07-30T06:05"]
+  sunset: string[]; // e.g. ["2026-07-30T19:54"]
 }
 
 /**
- * Derives the dominant daytime weather code for a target date by evaluating
- * hourly slots exclusively between the location's actual sunrise and sunset times.
+ * Calculates the dominant daily weather code for a given date.
+ * Hierarchy: Severe Thunderstorms > Snow/Ice > Precip Volume Overrides > Daytime Frequency Rollup.
  */
-export function getDominantDaytimeCode(hourly: any, daily: any, timeStr: string): number {
-  // 1. Filter hourly items for the given day during daylight hours
-  const dayHours = hourly.time
-    .map((t: string, idx: number) => ({ time: t, idx }))
-    .filter(({ time }: { time: string }) => time.startsWith(timeStr));
-
-  let maxPrecip = 0;
-  const codeCounts: Record<number, number> = {};
-
-  for (const { idx } of dayHours) {
-    const code = hourly.weather_code[idx];
-    const precip = hourly.precipitation ? hourly.precipitation[idx] : 0;
-    
-    if (precip > maxPrecip) maxPrecip = precip;
-
-    // Ignore precipitation codes if precipitation for that hour is below measurable threshold (0.2mm)
-    let effectiveCode = code;
-    if (isPrecipitationCode(code) && precip < 0.2) {
-      effectiveCode = 3; // Fallback to Overcast / Cloudy
+export function getDominantDaytimeCode(
+  hourly: HourlyForecast,
+  daily: DailyForecast,
+  dateString: string
+): number {
+  const dayIndices: number[] = [];
+  hourly.time.forEach((t, i) => {
+    if (t.startsWith(dateString)) {
+      dayIndices.push(i);
     }
+  });
 
-    codeCounts[effectiveCode] = (codeCounts[effectiveCode] || 0) + 1;
+  if (dayIndices.length === 0) return 0;
+
+  const dayPrecip = dayIndices.map((i) => hourly.precipitation[i] ?? 0);
+  const dayCodes = dayIndices.map((i) => hourly.weather_code[i]);
+  const daytimeMask = dayIndices.map((i) => (hourly.is_day ? hourly.is_day[i] === 1 : true));
+
+  const daytimeCodes = dayCodes.filter((_, idx) => daytimeMask[idx]);
+  const activeCodes = daytimeCodes.length > 0 ? daytimeCodes : dayCodes;
+
+  // 1. SEVERE WEATHER OVERRIDE (Thunderstorms & Hail)
+  const severeCode = dayCodes.find(
+    (code) => (code >= 89 && code <= 90) || (code >= 95 && code <= 99)
+  );
+  if (severeCode !== undefined) {
+    return severeCode;
+  }
+  
+  const totalPrecip = dayPrecip.reduce((sum, val) => sum + val, 0);
+  const maxHourlyPrecip = Math.max(...dayPrecip);
+  const peakIndex = dayPrecip.indexOf(maxHourlyPrecip);
+  const peakCode = dayCodes[peakIndex];
+
+  // Helper for snow and freezing rain codes
+  const isSnowOrIce = (code: number) =>
+    (code >= 71 && code <= 77) || (code >= 85 && code <= 86) || code === 66 || code === 67;
+
+  // 2. SNOW / ICE OVERRIDE
+  if (totalPrecip >= TRACE_PRECIPITATION_THRESHOLD && isSnowOrIce(peakCode)) {
+    return peakCode;
   }
 
-  // 2. Return the most frequent weather code across daytime hours
-  let dominantCode = daily.weather_code[0];
-  let maxCount = 0;
+  // 3. VOLUME / SEVERITY OVERRIDE (Heavy Rain)
+  if (
+    totalPrecip >= DAILY_PRECIP_VOLUME_THRESHOLD ||
+    maxHourlyPrecip >= HEAVY_HOURLY_RATE_THRESHOLD
+  ) {
+    // Escalate drizzle (51-57) to Moderate Rain (63) under high volume/intensity
+    if (peakCode >= 51 && peakCode <= 57) return 63;
+    return peakCode >= 51 && peakCode <= 99 ? peakCode : 61;
+  }
 
-  for (const [codeStr, count] of Object.entries(codeCounts)) {
+  // 4. DAYTIME DURATION / FREQUENCY ROLLUP (Fallback for dry/light days)
+  const frequencyMap = new Map<number, number>();
+  let maxCount = 0;
+  let dominantCode = activeCodes[0] ?? 0;
+
+  for (const code of activeCodes) {
+    const count = (frequencyMap.get(code) ?? 0) + 1;
+    frequencyMap.set(code, count);
     if (count > maxCount) {
       maxCount = count;
-      dominantCode = Number(codeStr);
+      dominantCode = code;
     }
   }
 
@@ -200,17 +251,17 @@ interface ColorStop {
 
 // Absolute color anchors on the Felsius scale (°Ꞓ)
 const FELSIUS_COLOR_STOPS: ColorStop[] = [
-  { tempFelsius: -60, r: 120, g: 80,  b: 220 }, // Deep Violet (Extreme Sub-Zero)
-  { tempFelsius: -30, r: 70,  g: 90,  b: 230 }, // Cold Indigo
-  { tempFelsius: 0,   r: 56,  g: 140, b: 248 }, // Frozen Blue (-11.4°C)
-  { tempFelsius: 16,  r: 56,  g: 189, b: 248 }, // Ice / Freezing Point (0°C)
-  { tempFelsius: 30,  r: 45,  g: 212, b: 191 }, // Soft Teal / Chilly (10°C)
-  { tempFelsius: 42,  r: 163, g: 230, b: 53  }, // Lime / Cool Crisp (18.5°C)
-  { tempFelsius: 50,  r: 250, g: 204, b: 21  }, // Warm Gold / Room Temp (24.3°C)
-  { tempFelsius: 58,  r: 245, g: 158, b: 11  }, // Amber / Warm (30°C)
-  { tempFelsius: 68,  r: 249, g: 115, b: 22  }, // Vibrant Hot Orange / Summer (37°C)
-  { tempFelsius: 78,  r: 239, g: 68,  b: 68  }, // Blazing Red / Sweltering (44.3°C)
-  { tempFelsius: 90,  r: 190, g: 18,  b: 60  }, // Crimson / Heatwave (52.8°C+)
+  { tempFelsius: -60, r: 120, g: 80, b: 220 }, // Deep Violet (Extreme Sub-Zero)
+  { tempFelsius: -30, r: 70, g: 90, b: 230 }, // Cold Indigo
+  { tempFelsius: 0, r: 56, g: 140, b: 248 }, // Frozen Blue (-11.4°C)
+  { tempFelsius: 16, r: 56, g: 189, b: 248 }, // Ice / Freezing Point (0°C)
+  { tempFelsius: 30, r: 45, g: 212, b: 191 }, // Soft Teal / Chilly (10°C)
+  { tempFelsius: 42, r: 163, g: 230, b: 53 }, // Lime / Cool Crisp (18.5°C)
+  { tempFelsius: 50, r: 250, g: 204, b: 21 }, // Warm Gold / Room Temp (24.3°C)
+  { tempFelsius: 58, r: 245, g: 158, b: 11 }, // Amber / Warm (30°C)
+  { tempFelsius: 68, r: 249, g: 115, b: 22 }, // Vibrant Hot Orange / Summer (37°C)
+  { tempFelsius: 78, r: 239, g: 68, b: 68 }, // Blazing Red / Sweltering (44.3°C)
+  { tempFelsius: 90, r: 190, g: 18, b: 60 }, // Crimson / Heatwave (52.8°C+)
 ];
 
 function interpolateColor(felsius: number): string {

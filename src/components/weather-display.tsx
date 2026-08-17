@@ -1,5 +1,5 @@
 import { useWeather, useAirQuality } from '@/lib/use-weather';
-import { describeWeatherCode } from '@/lib/weather-api';
+import { describeWeatherCode, TRACE_PRECIPITATION_THRESHOLD } from '@/lib/weather-api';
 import { getWeatherIcon, getWeatherColor } from '@/lib/weather-icons';
 import { getAqiBand, getAqiPosition } from '@/lib/aqi';
 import { generateNotices, generateAqiNotice, type WeatherNotice } from '@/lib/alerts';
@@ -318,13 +318,15 @@ export function WeatherDisplay({ location, isActive }: WeatherDisplayProps) {
             const isHourDay = isSpecialSun || (isNow ? isDay : apiIsDay);
 
             const precipAmount = hourly.precipitation ? hourly.precipitation[i] : 0;
-            const hasMeasurableRain = precipAmount >= 0.2;
+            const hasMeasurableRain = precipAmount >= TRACE_PRECIPITATION_THRESHOLD;
 
             const rawWeatherCode = hourly.weather_code[i];
             let effectiveWeatherCode = rawWeatherCode;
 
-            if ((!hasMeasurableRain && isPrecipitationCode(rawWeatherCode)) ||
-                (precipAmount >= 0.2 && (rawWeatherCode === 0 || rawWeatherCode === 1))) {
+            if (
+              (!hasMeasurableRain && isPrecipitationCode(rawWeatherCode)) ||
+              (precipAmount >= TRACE_PRECIPITATION_THRESHOLD && (rawWeatherCode === 0 || rawWeatherCode === 1))
+            ) {
               effectiveWeatherCode = 3;
             }
 

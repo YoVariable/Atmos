@@ -18,12 +18,18 @@ export function getWeatherIcon(code: number, isDay: number): LucideIcon {
   if (code === 2) return isDay ? CloudSun : CloudMoon;
   if (code === 3) return Cloud;
   if (code === 45 || code === 48) return CloudFog;
-  if (code >= 51 && code <= 57) return CloudDrizzle; // Drizzle codes use CloudDrizzle
-  if (code >= 61 && code <= 65) return CloudRain; // Normal rain
+  
+  // Drizzle (51-57), Light Rain (61), and Light Rain Showers (80)
+  if ((code >= 51 && code <= 57) || code === 61 || code === 80) return CloudDrizzle;
+  
+  // Moderate to Heavy Rain (62-65) and Rain Showers (81-82)
+  if ((code >= 62 && code <= 65) || code === 81 || code === 82) return CloudRain;
+  
   if (code === 66 || code === 67 || (code >= 71 && code <= 77)) return Snowflake; // Freezing rain & Snow
-  if (code >= 80 && code <= 82) return CloudRain; // Rain showers
   if (code >= 85 && code <= 86) return Snowflake; // Snow showers
-  if (code >= 95 && code <= 99) return CloudLightning;
+  // Add 89 & 90 to your thunderstorm/hail mapping in getWeatherIcon:
+  if ((code >= 89 && code <= 90) || (code >= 95 && code <= 99)) return CloudLightning;
+  
   return isDay ? Sun : Moon;
 }
 

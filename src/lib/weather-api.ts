@@ -90,7 +90,11 @@ export interface AirQuality {
 }
 
 const CACHE_TTL = 15 * 60 * 1000; // 15-minute cache
-const TRACE_PRECIPITATION_THRESHOLD = 0.2; // mm
+
+// Precipitation Constants
+export const TRACE_PRECIPITATION_THRESHOLD = 0.2; // mm
+export const DAILY_PRECIP_VOLUME_THRESHOLD = 5.0; // mm daily total override
+export const HEAVY_HOURLY_RATE_THRESHOLD = 2.5;   // mm/h peak rate override
 
 export async function searchCities(query: string): Promise<GeocodeResult[]> {
   if (!query.trim()) return [];
