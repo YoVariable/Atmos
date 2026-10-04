@@ -33,7 +33,7 @@ export const StickyHeader: React.FC<StickyHeaderProps> = ({
   return createPortal(
     <div
       style={{
-        zIndex: 9999,
+        zIndex: 30, // Lowered from 9999 so bottom sheets (z-40/z-50) stack above it
         isolation: 'isolate',
       }}
       className={`fixed top-0 left-0 right-0 flex justify-center pointer-events-none transition-all duration-300 ease-out pt-[max(env(safe-area-inset-top),3.5rem)] ${
