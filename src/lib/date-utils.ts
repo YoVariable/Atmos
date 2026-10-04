@@ -15,7 +15,7 @@ export function parseLocalDateString(dateStr: string): Date {
   return new Date(year, month - 1, day);
 }
 
-/** User-selectable long-date display preference for the 7-day forecast detail view. */
+/** User-selectable long-date display preference for the 10-day forecast detail view. */
 export type LongDateFormat = 'mdy' | 'dmy';
 
 export const LONG_DATE_FORMAT_OPTIONS: { value: LongDateFormat; label: string; example: string }[] = [

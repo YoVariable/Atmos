@@ -162,7 +162,7 @@ export function LocationManager() {
         
         {/* HEADER AREA: Title and Edit Toggle */}
         <div className="flex items-center justify-between mb-4">
-          <DialogTitle className="mt-7 text-xl font-medium tracking-tight">Locations</DialogTitle>
+          <DialogTitle className="mt-7 text-xl font-bold tracking-tight">Locations</DialogTitle>
           {locations.length > 1 && (
              <button 
                onClick={() => setIsEditing(!isEditing)}

@@ -92,6 +92,22 @@ function SunArc({ progress, isDaytime }: { progress: number; isDaytime: boolean 
   );
 }
 
+/** Render formatted time string with stacked AM/PM matching original styling */
+function FormattedStackedTime({ timeString }: { timeString: string }) {
+  const parts = timeString.trim().split(' ');
+  
+  if (parts.length === 2 && (parts[1].toUpperCase() === 'AM' || parts[1].toUpperCase() === 'PM')) {
+    return (
+      <div className="flex flex-col items-center">
+        <span className="text-2xl font-medium tracking-tight font-mono">{parts[0]}</span>
+        <span className="text-lg font-medium font-mono tracking-wider">{parts[1]}</span>
+      </div>
+    );
+  }
+
+  return <div className="text-2xl font-medium tracking-tight font-mono">{timeString}</div>;
+}
+
 export function SunriseSunsetDetailContent({
   current,
   daily,
@@ -183,9 +199,9 @@ export function SunriseSunsetDetailContent({
       <div className="space-y-4">
         <SunArc progress={progress} isDaytime={isDaytime} />
         <div className="flex items-center justify-between text-center">
-          <div className="flex-1">
-            <div className="text-xs font-semibold uppercase tracking-widest text-foreground/50">Sunrise</div>
-            <div className="text-2xl font-medium tracking-tight font-mono">{sunriseLabel}</div>
+          <div className="flex-1 flex flex-col items-center">
+            <div className="text-xs font-semibold uppercase tracking-widest text-foreground/50 mb-1">Sunrise</div>
+            <FormattedStackedTime timeString={sunriseLabel} />
           </div>
           <div className="flex-1">
             {countdownLabel && (
@@ -203,9 +219,9 @@ export function SunriseSunsetDetailContent({
               <div className="text-xs text-foreground/50 mt-1">Midnight sun</div>
             )}
           </div>
-          <div className="flex-1">
-            <div className="text-xs font-semibold uppercase tracking-widest text-foreground/50">Sunset</div>
-            <div className="text-2xl font-medium tracking-tight font-mono">{sunsetLabel}</div>
+          <div className="flex-1 flex flex-col items-center">
+            <div className="text-xs font-semibold uppercase tracking-widest text-foreground/50 mb-1">Sunset</div>
+            <FormattedStackedTime timeString={sunsetLabel} />
           </div>
         </div>
       </div>

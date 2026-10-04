@@ -93,26 +93,24 @@ export function DailyDetailContent({
   const isMidnightSun = daily.daylight_duration[0] > 86340;
   const detailsIsDay = isToday ? (isMidnightSun ? 1 : current?.is_day ?? 1) : 1;
   
-  // Determine displayCode: use the passed dominantCode for Today, or calculate for future days
-    let displayCode: number;
-    if (selectedDay === 0 && dominantCode !== undefined) {
-      displayCode = dominantCode;
-    } else if (selectedDay === 0) {
-      // Safe fallback if dominantCode isn't passed
-      const rawCurrentCode = current?.weather_code ?? 3;
-      displayCode = rawCurrentCode;
-    } else {
-      displayCode = getDominantDaytimeCode(hourly, daily, daily.time[selectedDay]);
-    }
+  let displayCode: number;
+  if (selectedDay === 0 && dominantCode !== undefined) {
+    displayCode = dominantCode;
+  } else if (selectedDay === 0) {
+    const rawCurrentCode = current?.weather_code ?? 3;
+    displayCode = rawCurrentCode;
+  } else {
+    displayCode = getDominantDaytimeCode(hourly, daily, daily.time[selectedDay]);
+  }
 
-    const Icon = getWeatherIcon(displayCode, detailsIsDay);
-    const precipChance = daily.precipitation_probability_max[selectedDay];
+  const Icon = getWeatherIcon(displayCode, detailsIsDay);
+  const precipChance = daily.precipitation_probability_max[selectedDay];
 
-    const formatTooltipTime = (rawHour: number) => {
-      const d = new Date(selectedDate);
-      d.setHours(rawHour, 0, 0, 0);
-      return formatTime(d, settings.timeFormat);
-    };
+  const formatTooltipTime = (rawHour: number) => {
+    const d = new Date(selectedDate);
+    d.setHours(rawHour, 0, 0, 0);
+    return formatTime(d, settings.timeFormat);
+  };
 
   const CustomPrecipTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
@@ -177,16 +175,27 @@ export function DailyDetailContent({
         <Icon className="w-10 h-10 text-primary" strokeWidth={1.5} />
       </div>
 
-      <div className="grid grid-cols-2 gap-1 p-1 rounded-full bg-black/5">
+      {/* Theme-Softened Segmented Control Track */}
+      <div className="grid grid-cols-2 gap-1 p-1 rounded-2xl bg-black/[0.03] dark:bg-white/[0.04] border border-black/[0.03] dark:border-white/[0.03]">
         <button
+          type="button"
           onClick={() => setMode('actual')}
-          className={`py-2 rounded-full text-sm font-semibold transition-colors ${mode === 'actual' ? 'bg-background shadow-sm' : 'text-foreground/50'}`}
+          className={`py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
+            mode === 'actual'
+              ? 'bg-background text-foreground shadow-xs border border-black/5 dark:border-white/5 dark:bg-white/[0.02]'
+              : 'text-foreground/60 hover:text-foreground'
+          }`}
         >
           Actual
         </button>
         <button
+          type="button"
           onClick={() => setMode('feels')}
-          className={`py-2 rounded-full text-sm font-semibold transition-colors ${mode === 'feels' ? 'bg-background shadow-sm' : 'text-foreground/50'}`}
+          className={`py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
+            mode === 'feels'
+              ? 'bg-background text-foreground shadow-xs border border-black/5 dark:border-white/5 dark:bg-white/[0.08]'
+              : 'text-foreground/60 hover:text-foreground'
+          }`}
         >
           Feels Like
         </button>
@@ -218,8 +227,8 @@ export function DailyDetailContent({
               tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
             />
             <YAxis 
-            hide 
-            domain={[
+              hide 
+              domain={[
                 (dataMin: number) => Math.floor(dataMin - 3), 
                 (dataMax: number) => Math.ceil(dataMax + 3)
               ]} 

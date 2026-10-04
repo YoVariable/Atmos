@@ -114,7 +114,7 @@ export function SettingsManager() {
           </Section>
 
           {/* ── Date Format ── */}
-          <Section title="7-Day Forecast Date Format">
+          <Section title="10-Day Forecast Date Format">
             <div className="space-y-2">
               {orderedDateOptions.map((option) => {
                 const currentSetting = settings.longDateFormat || orderedDateOptions[0].value;

@@ -193,7 +193,7 @@ export async function getForecast(
   url.searchParams.set('wind_speed_unit', 'kmh');
   url.searchParams.set('precipitation_unit', 'mm');
   url.searchParams.set('temperature_unit', 'celsius');
-  url.searchParams.set('forecast_days', '7');
+  url.searchParams.set('forecast_days', '10');
   url.searchParams.set('past_hours', '6');
 
   // 3. Execute fetch with 429 intercept
