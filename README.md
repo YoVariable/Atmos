@@ -30,8 +30,8 @@ The exact linear transformation equations enforced by the Atmos conversion engin
 
 * **Celsius to Felsius:** $$\text{°Ꞓ} = 1.4(\text{°C}) + 16$$
 * **Felsius to Celsius:** $$\text{°C} = \frac{\text{°Ꞓ} - 16}{1.4}$$
-* **Felsius to Fahrenheit:** $$\text{°F} = \frac{1.8(\text{°Ꞓ}) + 16}{1.4}$$
-* **Fahrenheit to Felsius:** $$\text{°Ꞓ} = \frac{1.4(\text{°F}) - 16}{1.8}$$
+* **Fahrenheit to Felsius:** $$\text{°Ꞓ} = \frac{7(\text{°F}) - 80}{9}$$
+* **Felsius to Fahrenheit:** $$\text{°F} = \frac{9(\text{°Ꞓ}) + 80}{7}$$
 
 ### Operational Identity Proof
 * **58°Ꞓ** maps cleanly to whole integers: **30°C** and **86°F**.
