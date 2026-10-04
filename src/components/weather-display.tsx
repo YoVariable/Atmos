@@ -70,9 +70,9 @@ const CARD_TRIGGER_CLASS =
 
 export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplayProps) {
   const { settings } = useSettings();
-  
+
   // Check explicit prop OR the location object's isCurrent flag OR id === 'current'
- const isCurrentLocation = isCurrent ?? location?.isCurrent ?? false;
+  const isCurrentLocation = isCurrent ?? location?.isCurrent ?? false;
 
   // Sticky Header state and Callback Ref setup
   const [showStickyHeader, setShowStickyHeader] = useState(false);
@@ -277,18 +277,18 @@ export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplay
       {/* Hero Header */}
       <section ref={heroCallbackRef} className="flex flex-col items-center text-center mb-10">
         {/* Current Location Badge */}
-          {isCurrentLocation && (
-            <div className="flex items-center justify-center gap-1.5 text-xs font-semibold tracking-widest uppercase text-foreground/60 mb-1">
-              <svg
-                className="w-3.5 h-3.5 text-foreground/70 fill-current relative -top-[1.5px]"
-                viewBox="0 0 24 24"
-                style={{ transform: 'rotate(45deg)' }}
-              >
-                <polygon points="12 2 19 21 12 17 5 21 12 2" />
-              </svg>
-              <span>Current Location</span>
-            </div>
-          )}
+        {isCurrentLocation && (
+          <div className="flex items-center justify-center gap-1.5 text-xs font-semibold tracking-widest uppercase text-foreground/60 mb-1">
+            <svg
+              className="w-3.5 h-3.5 text-foreground/70 fill-current relative -top-[1.5px]"
+              viewBox="0 0 24 24"
+              style={{ transform: 'rotate(45deg)' }}
+            >
+              <polygon points="12 2 19 21 12 17 5 21 12 2" />
+            </svg>
+            <span>Current Location</span>
+          </div>
+        )}
 
         {/* Large City Name Header */}
         <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground mb-1">
