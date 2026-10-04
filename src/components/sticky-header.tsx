@@ -32,7 +32,7 @@ export const StickyHeader: React.FC<StickyHeaderProps> = ({
 
   return createPortal(
     <div
-      className={`fixed top-0 left-0 right-0 z-50 flex justify-center pointer-events-none transition-all duration-300 ease-out pt-[calc(env(safe-area-inset-top)+0.75rem)] ${
+      className={`fixed top-0 left-0 right-0 z-50 flex justify-center pointer-events-none transition-all duration-300 ease-out pt-[max(env(safe-area-inset-top),3.5rem)] ${
         isVisible
           ? 'opacity-100 translate-y-0'
           : 'opacity-0 -translate-y-4'
@@ -40,7 +40,6 @@ export const StickyHeader: React.FC<StickyHeaderProps> = ({
     >
       <div className="pointer-events-auto w-[calc(100%-2rem)] max-w-md mx-auto">
         <header className="glass-panel py-2.5 px-5 flex flex-col items-center justify-center text-center gap-0.5 rounded-full border border-black/10 dark:border-white/15 bg-background/80 dark:bg-zinc-900/80 backdrop-blur-xl shadow-lg">
-          {/* Small Compass Rose + Current Location Badge */}
           {isCurrent && (
             <div className="flex items-center justify-center gap-1 text-[11px] font-semibold tracking-widest uppercase text-foreground/60 leading-none mb-0.5">
               <svg
@@ -54,12 +53,10 @@ export const StickyHeader: React.FC<StickyHeaderProps> = ({
             </div>
           )}
 
-          {/* City / Location Name */}
           <h2 className="text-lg font-semibold tracking-tight text-foreground leading-tight truncate max-w-[90%]">
             {location}
           </h2>
 
-          {/* Sub-header: [Temp]°Ꞓ | [Condition] */}
           <div className="flex items-center justify-center gap-1.5 text-sm font-medium text-foreground/80 leading-none mt-0.5">
             <span className="font-semibold text-foreground">
               {currentTemp}{FELSIUS_UNIT}

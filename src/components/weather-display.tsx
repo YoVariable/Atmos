@@ -262,7 +262,7 @@ export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplay
       : location.name;
 
   return (
-    <div className="w-full max-w-2xl mx-auto px-4 sm:px-6 pb-24 pt-12 sm:pt-20 space-y-4 relative z-10 animate-in fade-in duration-700 ease-out">
+    <div className="w-full max-w-2xl mx-auto px-4 sm:px-6 pb-24 pt-16 sm:pt-24 space-y-4 relative z-10 animate-in fade-in duration-700 ease-out">
       {/* Translucent Sticky Collapsing Header */}
       {isActive && (
         <StickyHeader
@@ -275,7 +275,7 @@ export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplay
       )}
 
       {/* Hero Header */}
-      <section ref={heroCallbackRef} className="flex flex-col items-center text-center mb-10">
+      <section ref={heroCallbackRef} className="flex flex-col items-center text-center mb-10 pt-2 sm:pt-4">
         {/* Current Location Badge */}
         {isCurrentLocation && (
           <div className="flex items-center justify-center gap-1.5 text-xs font-semibold tracking-widest uppercase text-foreground/60 mb-1">
