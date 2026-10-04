@@ -78,27 +78,29 @@ export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplay
   const [showStickyHeader, setShowStickyHeader] = useState(false);
   const observerRef = useRef<IntersectionObserver | null>(null);
 
-  const heroCallbackRef = useCallback((node: HTMLElement | null) => {
-    if (observerRef.current) {
-      observerRef.current.disconnect();
-    }
+const heroCallbackRef = useCallback((node: HTMLElement | null) => {
+  if (observerRef.current) {
+    observerRef.current.disconnect();
+  }
 
-    if (node) {
-      observerRef.current = new IntersectionObserver(
-        ([entry]) => {
-          // Only show sticky header when hero section is out of view AND scrolled past the top
-          const isScrolledPast = !entry.isIntersecting && entry.boundingClientRect.top < 0;
-          setShowStickyHeader(isScrolledPast);
-        },
-        {
-          root: null,
-          threshold: 0,
-        }
-      );
+  if (node) {
+    observerRef.current = new IntersectionObserver(
+      ([entry]) => {
+        // Trigger only when the hero section has scrolled fully off-screen top
+        const isScrolledPast = !entry.isIntersecting && entry.boundingClientRect.top <= 0;
+        setShowStickyHeader(isScrolledPast);
+      },
+      {
+        root: null,
+        // Using threshold 0.1 or a negative top rootMargin delays execution until the element leaves the screen completely
+        threshold: 0,
+        rootMargin: '-80px 0px 0px 0px', // Pushes the trigger zone down by 80px
+      }
+    );
 
-      observerRef.current.observe(node);
-    }
-  }, []);
+    observerRef.current.observe(node);
+  }
+}, []);
 
   const { data, isLoading, error } = useWeather(location.latitude, location.longitude);
   const { data: airQuality } = useAirQuality(location.latitude, location.longitude);

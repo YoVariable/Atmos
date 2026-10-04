@@ -32,14 +32,25 @@ export const StickyHeader: React.FC<StickyHeaderProps> = ({
 
   return createPortal(
     <div
-      className={`fixed top-0 left-0 right-0 z-50 flex justify-center pointer-events-none transition-all duration-300 ease-out pt-[max(env(safe-area-inset-top),3.5rem)] ${
+      style={{
+        zIndex: 9999,
+        isolation: 'isolate',
+      }}
+      className={`fixed top-0 left-0 right-0 flex justify-center pointer-events-none transition-all duration-300 ease-out pt-[max(env(safe-area-inset-top),3.5rem)] ${
         isVisible
           ? 'opacity-100 translate-y-0'
           : 'opacity-0 -translate-y-4'
       }`}
     >
       <div className="pointer-events-auto w-[calc(100%-2rem)] max-w-md mx-auto">
-        <header className="glass-panel py-2.5 px-5 flex flex-col items-center justify-center text-center gap-0.5 rounded-full border border-black/10 dark:border-white/15 bg-background/80 dark:bg-zinc-900/80 backdrop-blur-xl shadow-lg">
+        <header 
+          style={{
+            backgroundColor: 'rgba(24, 24, 27, 0.98)', // Forced solid dark background for Android
+            WebkitBackdropFilter: 'blur(16px)',
+            backdropFilter: 'blur(16px)',
+          }}
+          className="py-2.5 px-5 flex flex-col items-center justify-center text-center gap-0.5 rounded-full border border-black/20 dark:border-white/20 shadow-2xl relative"
+        >
           {isCurrent && (
             <div className="flex items-center justify-center gap-1 text-[11px] font-semibold tracking-widest uppercase text-foreground/60 leading-none mb-0.5">
               <svg

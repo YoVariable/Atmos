@@ -112,7 +112,21 @@
 }
 
 .glass-panel {
-  @apply bg-white/40 dark:bg-zinc-900/60 backdrop-blur-2xl border border-white/50 dark:border-white/25 shadow-[0_4px_16px_rgba(0,0,0,0.02)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.4)] rounded-[2rem];
+  /* High opacity base for Android hardware fallback */
+  @apply bg-white/90 dark:bg-zinc-900/90 border border-white/50 dark:border-white/25 shadow-[0_4px_16px_rgba(0,0,0,0.02)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.4)] rounded-[2rem];
+  
+  /* Modern backdrop blur with isolation */
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  isolation: isolate;
+  position: relative;
+}
+
+/* Supports query to only apply semi-transparency on browsers that properly render blur */
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  .glass-panel {
+    @apply bg-white/75 dark:bg-zinc-900/80;
+  }
 }
 
 /* Force all inner card dividers, headers, and rows to be visible in dark mode */
