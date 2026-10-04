@@ -45,11 +45,10 @@ export const StickyHeader: React.FC<StickyHeaderProps> = ({
       <div className="pointer-events-auto w-[calc(100%-2rem)] max-w-md mx-auto">
         <header 
           style={{
-            backgroundColor: 'rgba(24, 24, 27, 0.98)', // Forced solid dark background for Android
             WebkitBackdropFilter: 'blur(16px)',
             backdropFilter: 'blur(16px)',
           }}
-          className="py-2.5 px-5 flex flex-col items-center justify-center text-center gap-0.5 rounded-full border border-black/20 dark:border-white/20 shadow-2xl relative"
+          className="py-2.5 px-5 flex flex-col items-center justify-center text-center gap-0.5 rounded-full border border-black/15 dark:border-white/20 bg-card/95 dark:bg-zinc-950/95 shadow-2xl relative"
         >
           {isCurrent && (
             <div className="flex items-center justify-center gap-1 text-[11px] font-semibold tracking-widest uppercase text-foreground/60 leading-none mb-0.5">
