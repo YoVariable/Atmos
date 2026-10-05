@@ -170,8 +170,8 @@
     display: none !important;
   }
   
-/* Mobile Landscape Orientation Lock */
-@media screen and (orientation: landscape) and (max-height: 600px) {
+/* Landscape Orientation Lock for Phones & Tablets */
+@media screen and (orientation: landscape) and (pointer: coarse) {
   #root {
     display: none !important;
   }
