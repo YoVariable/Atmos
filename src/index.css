@@ -75,7 +75,7 @@
   /* Sleek dark charcoal/black minimalist aesthetic */
   --background: 240 10% 6%;
   --foreground: 0 0% 95%;
-  --border: 240 5% 28%;        /* <--- Bumped up from 18% to 28% for clear visibility */
+  --border: 240 5% 28%;
   --card: 240 10% 14%;        
   --card-foreground: 0 0% 95%;
   --popover: 240 10% 14%;
@@ -112,17 +112,14 @@
 }
 
 .glass-panel {
-  /* High opacity base for Android hardware fallback */
   @apply bg-white/90 dark:bg-zinc-900/90 border border-white/50 dark:border-white/25 shadow-[0_4px_16px_rgba(0,0,0,0.02)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.4)] rounded-[2rem];
   
-  /* Modern backdrop blur with isolation */
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   isolation: isolate;
   position: relative;
 }
 
-/* Supports query to only apply semi-transparency on browsers that properly render blur */
 @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
   .glass-panel {
     @apply bg-white/75 dark:bg-zinc-900/80;
@@ -149,7 +146,6 @@
   transition: background-color 1.5s ease;
   mask-image: radial-gradient(100% 100% at 50% 0%, black 0%, transparent 100%);
   -webkit-mask-image: radial-gradient(100% 100% at 50% 0%, black 0%, transparent 100%);
-  /* fallback for older browsers */
   background-image: linear-gradient(180deg, var(--glow-color, rgba(255,255,255,0)) 0%, transparent 100%);
 }
 
@@ -160,21 +156,8 @@
 
 /* Hide scrollbar for IE, Edge and Firefox */
 .scrollbar-hide {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
-}
-
-/* Mobile Landscape Orientation Lock */
-@media screen and (orientation: landscape) and (max-height: 600px) {
-  #root {
-    display: none !important;
-  }
-  
-/* Landscape Orientation Lock for Phones & Tablets */
-@media screen and (orientation: landscape) and (pointer: coarse) {
-  #root {
-    display: none !important;
-  }
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 /* Prevent iOS WebKit Auto-Zoom on Input Focus */
@@ -185,6 +168,12 @@
     font-size: 16px !important;
   }
 }
+
+/* Mobile & Tablet Landscape Orientation Lock */
+@media screen and (orientation: landscape) and (max-width: 1366px) and (any-pointer: coarse) {
+  #root {
+    display: none !important;
+  }
 
   body::before {
     content: "Atmos is best experienced in portrait mode. Please rotate your device.";
