@@ -58,7 +58,7 @@ export function InfoManager() {
         </button>
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-lg max-h-[85vh] bg-background/95 backdrop-blur-xl border-none shadow-2xl rounded-[2rem] p-6 flex flex-col overflow-hidden">
+      <DialogContent className="sm:max-w-lg max-h-[78dvh] sm:max-h-[85vh] bg-background/95 backdrop-blur-xl border-none shadow-2xl rounded-[2rem] p-6 flex flex-col overflow-hidden">
         <DialogTitle className="text-xl font-bold tracking-tight mb-3 shrink-0">
           About Atmos
         </DialogTitle>

@@ -87,7 +87,7 @@ export function SettingsManager() {
         </button>
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-md bg-background/95 backdrop-blur-xl border-none shadow-2xl rounded-[2rem] p-6 max-h-[85vh] overflow-hidden flex flex-col">
+      <DialogContent className="sm:max-w-md bg-background/95 backdrop-blur-xl border-none shadow-2xl rounded-[2rem] p-6 max-h-[78dvh] sm:max-h-[85vh] overflow-hidden flex flex-col">
         <DialogTitle className="text-xl font-bold tracking-tight mb-1">Settings</DialogTitle>
 
         <div className="flex-1 overflow-y-auto space-y-6 pb-4 scrollbar-hide">
@@ -186,7 +186,7 @@ export function SettingsManager() {
             <SettingRow label="Coordinates">
               <PillSelect
                 options={COORDINATE_FORMAT_OPTIONS || [
-                  { value: 'dms', label: 'DMS (°) (\') (\")' },
+                  { value: 'dms', label: 'DMS (°)(\')(")' },
                   { value: 'decimal', label: 'Decimal Degrees (°)' }
                 ]}
                 value={settings.coordinateFormat || 'dms'}

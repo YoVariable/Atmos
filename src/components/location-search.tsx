@@ -26,7 +26,7 @@ export function LocationSearch({ onSelect, onUseCurrentLocation, isLocatingCurre
         <input
           type="text"
           placeholder="Search for a city..."
-          className="w-full pl-11 pr-11 py-3.5 bg-black/5 dark:bg-zinc-800/60 border-none rounded-2xl text-[15px] font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-muted-foreground text-foreground"
+          className="w-full pl-11 pr-11 py-3.5 bg-black/5 dark:bg-zinc-800/60 border-none rounded-2xl text-base font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-muted-foreground text-foreground"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
