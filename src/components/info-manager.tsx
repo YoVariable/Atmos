@@ -1,47 +1,101 @@
-import { Info, Sparkles } from 'lucide-react';
+import { Info, Sparkles, ExternalLink, Brain } from 'lucide-react';
 import { Dialog, DialogContent, DialogTrigger, DialogTitle } from '@/components/ui/dialog';
 
 const MILESTONES = [
   {
-    landmark: 'Deep Freeze',
+    landmark: 'Sub-Zero Baseline',
     felsius: '0°Ꞓ',
     muted: '-11.4°C / 11.4°F',
     meaning: 'Severe hard freeze; pipe freeze danger and arctic winter gear.',
   },
   {
+    landmark: 'Hard Freeze',
+    felsius: '2°Ꞓ',
+    muted: '-10.0°C / 14.0°F',
+    meaning: 'Deep sub-zero cold; heavy winter protection mandatory.',
+  },
+  {
+    landmark: 'Deep Freeze',
+    felsius: '9°Ꞓ',
+    muted: '-5.0°C / 23.0°F',
+    meaning: 'Sustained freezing conditions; roads icy and winter coat required.',
+  },
+  {
     landmark: 'Freezing Baseline',
     felsius: '16°Ꞓ',
-    muted: '0°C / 32°F',
+    muted: '0.0°C / 32.0°F',
     meaning: 'Frost line; water turns to ice; sub-16 requires winter protection.',
   },
   {
-    landmark: 'Crisp / Jacket',
+    landmark: 'Chilly / Jacket',
+    felsius: '23°Ꞓ',
+    muted: '5.0°C / 41.0°F',
+    meaning: 'Brisk air; heavy jacket or coat recommended.',
+  },
+  {
+    landmark: 'Crisp / Sweater',
     felsius: '30°Ꞓ',
-    muted: '10°C / 50°F',
+    muted: '10.0°C / 50.0°F',
     meaning: 'Cool weather; light jacket or sweater required.',
   },
   {
+    landmark: 'Mild Outdoor',
+    felsius: '37°Ꞓ',
+    muted: '15.0°C / 59.0°F',
+    meaning: 'Pleasant daytime conditions; comfortable for active movement.',
+  },
+  {
     landmark: 'Indoor Comfort',
-    felsius: '45°Ꞓ',
-    muted: '20.7°C / 69.3°F',
+    felsius: '44°Ꞓ',
+    muted: '20.0°C / 68.0°F',
     meaning: 'Ideal indoor climate baseline for thermostat settings.',
   },
   {
-    landmark: 'Summer Heat',
-    felsius: '60°Ꞓ',
-    muted: '31.4°C / 88.6°F',
-    meaning: 'Classic warm summer day; beach weather, shorts, and t-shirts.',
+    landmark: 'Warm Summer',
+    felsius: '51°Ꞓ',
+    muted: '25.0°C / 77.0°F',
+    meaning: 'Pleasant warm day; t-shirts, light clothing, and shorts.',
   },
   {
-    landmark: 'Heatwave Warning',
-    felsius: '70°Ꞓ',
-    muted: '38.6°C / 101.4°F',
-    meaning: 'Severe heat dome threshold; active hydration and AC required.',
+    landmark: 'Beach Weather',
+    felsius: '58°Ꞓ',
+    muted: '30.0°C / 86.0°F',
+    meaning: 'Classic hot summer day; outdoor swimming and beach weather.',
+  },
+  {
+    landmark: 'Intense Heatwave',
+    felsius: '65°Ꞓ',
+    muted: '35.0°C / 95.0°F',
+    meaning: 'Heavy heatwave warning; active hydration and shade required.',
+  },
+  {
+    landmark: 'Heat Dome',
+    felsius: '72°Ꞓ',
+    muted: '40.0°C / 104.0°F',
+    meaning: 'Severe heat dome threshold; air conditioning essential.',
+  },
+  {
+    landmark: 'Desert Extreme',
+    felsius: '79°Ꞓ',
+    muted: '45.0°C / 113.0°F',
+    meaning: 'Extreme desert heat; hazardous long-term outdoor exposure.',
+  },
+  {
+    landmark: 'Global Maximum',
+    felsius: '86°Ꞓ',
+    muted: '50.0°C / 122.0°F',
+    meaning: 'Approaching recorded planetary temperature maximums.',
+  },
+  {
+    landmark: 'Planetary Record',
+    felsius: '93°Ꞓ',
+    muted: '55.0°C / 131.0°F',
+    meaning: 'Historical atmospheric record extremes.',
   },
   {
     landmark: 'Survival Boundary',
     felsius: '100°Ꞓ',
-    muted: '60°C / 140°F',
+    muted: '60.0°C / 140.0°F',
     meaning: 'Absolute upper limit for human biological survival.',
   },
 ];
@@ -66,7 +120,7 @@ export function InfoManager() {
         <div className="flex-1 overflow-y-auto space-y-6 text-sm text-muted-foreground pr-1.5 scrollbar-hide">
           {/* Atmos App Overview */}
           <div>
-            <h4 className="font-semibold text-foreground mb-1">Version 1.4.0</h4>
+            <h4 className="font-semibold text-foreground mb-1">Version 1.4.1</h4>
             <p className="leading-relaxed">
               Atmos provides precision weather metrics for the modern enthusiast. Designed for
               speed, clarity, and a unique perspective on local conditions.
@@ -133,9 +187,36 @@ export function InfoManager() {
               <p className="leading-relaxed text-muted-foreground">
                 Use this guide to anchor major weather milestones. Once you associate{' '}
                 <strong className="text-foreground font-medium">30°Ꞓ</strong> with sweaters,{' '}
-                <strong className="text-foreground font-medium">45°Ꞓ</strong> with room comfort, and{' '}
-                <strong className="text-foreground font-medium">60°Ꞓ</strong> with summer heat, try relying purely on °Ꞓ numbers to build direct thermal recognition!
+                <strong className="text-foreground font-medium">44°Ꞓ</strong> with room comfort, and{' '}
+                <strong className="text-foreground font-medium">58°Ꞓ</strong> with beach weather, try relying purely on °Ꞓ numbers to build direct thermal recognition!
               </p>
+            </div>
+
+            {/* Mental Estimation Shortcuts Card */}
+            <div className="p-4 rounded-2xl bg-sky-500/10 border border-sky-500/20 space-y-2.5">
+              <div className="flex items-center gap-1.5 font-semibold text-xs text-sky-500 dark:text-sky-400 uppercase tracking-wider">
+                <Brain className="w-3.5 h-3.5" />
+                <span>Mental Estimation Rules</span>
+              </div>
+              
+              {/* Step Lines */}
+              <div className="space-y-1.5 font-mono text-xs font-bold text-foreground text-center">
+                <div className="py-1 bg-black/5 dark:bg-white/5 rounded-lg border border-black/5 dark:border-white/5">
+                  Δ1°Ꞓ ≈ Δ0.5°C ≈ Δ1°F
+                </div>
+                <div className="py-1 bg-black/5 dark:bg-white/5 rounded-lg border border-black/5 dark:border-white/5">
+                  Δ2°Ꞓ ≈ Δ1.5°C ≈ Δ3°F
+                </div>
+                <div className="py-1 bg-black/5 dark:bg-white/5 rounded-lg border border-black/5 dark:border-white/5">
+                  Δ3°Ꞓ ≈ Δ2°C ≈ Δ4°F
+                </div>
+              </div>
+
+              <div className="text-xs text-foreground/80 space-y-1.5 pt-1">
+                <p className="leading-relaxed">
+                  <strong className="text-foreground font-medium">Quick mental rule of thumb:</strong> A <span className="font-mono text-sky-600 dark:text-sky-400 font-medium">1°Ꞓ</span> shift is roughly <span className="font-mono text-sky-600 dark:text-sky-400 font-medium">0.5°C</span> or <span className="font-mono text-sky-600 dark:text-sky-400 font-medium">1°F</span> everywhere on the scale.
+                </p>
+              </div>
             </div>
 
             {/* Original Manual Conversion Reference */}
@@ -169,6 +250,28 @@ export function InfoManager() {
                 <div className="text-primary font-medium">{`°F = (9(°Ꞓ) + 80) / 7`}</div>
               </div>
             </div>
+
+{/* Interactive Calculator Attribution (felsius.com) */}
+<div className="p-4 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 space-y-2.5 text-xs">
+  <div className="flex items-center justify-between">
+    <h4 className="font-semibold text-foreground">Interactive Calculator Tool</h4>
+    <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" />
+  </div>
+  <p className="leading-relaxed text-muted-foreground">
+    For instant multi-unit conversions across Felsius, Celsius, Fahrenheit, and other temperature scales without performing manual calculations, check out the official web tool created by Caleb Begly at{' '}
+    <a 
+      href="https://felsius.com" 
+      target="_blank" 
+      rel="noopener noreferrer" 
+      className="text-primary underline underline-offset-4 font-medium hover:opacity-80"
+    >
+      felsius.com
+    </a>.
+  </p>
+  <div className="text-[11px] text-muted-foreground pt-3 mt-1 border-t border-black/5 dark:border-white/5">
+    &copy; 2020 Caleb Begly, All Rights Reserved
+  </div>
+</div>
           </div>
 
           {/* Data Attribution */}

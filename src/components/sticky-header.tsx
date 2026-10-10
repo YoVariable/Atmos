@@ -48,7 +48,7 @@ export const StickyHeader: React.FC<StickyHeaderProps> = ({
             WebkitBackdropFilter: 'blur(16px)',
             backdropFilter: 'blur(16px)',
           }}
-          className="py-2.5 px-5 flex flex-col items-center justify-center text-center gap-0.5 rounded-full border border-black/15 dark:border-white/20 bg-card/95 dark:bg-zinc-950/95 shadow-2xl relative"
+          className="py-2.5 px-5 flex flex-col items-center justify-center text-center gap-0.5 rounded-full border border-white/50 dark:border-white/25 bg-white/35 dark:bg-zinc-900/80 shadow-xl relative"
         >
           {isCurrent && (
             <div className="flex items-center justify-center gap-1 text-[11px] font-semibold tracking-widest uppercase text-foreground/60 leading-none mb-0.5">

@@ -259,9 +259,9 @@ const FELSIUS_COLOR_STOPS: ColorStop[] = [
   { tempFelsius: 42, r: 163, g: 230, b: 53 }, // Lime / Cool Crisp (18.5°C)
   { tempFelsius: 50, r: 250, g: 204, b: 21 }, // Warm Gold / Room Temp (24.3°C)
   { tempFelsius: 58, r: 245, g: 158, b: 11 }, // Amber / Warm (30°C)
-  { tempFelsius: 68, r: 249, g: 115, b: 22 }, // Vibrant Hot Orange / Summer (37°C)
-  { tempFelsius: 78, r: 239, g: 68, b: 68 }, // Blazing Red / Sweltering (44.3°C)
-  { tempFelsius: 90, r: 190, g: 18, b: 60 }, // Crimson / Heatwave (52.8°C+)
+  { tempFelsius: 65, r: 249, g: 115, b: 22 }, // Hot Orange (35°C / 95°F)
+  { tempFelsius: 72, r: 220, g: 38, b: 38 },  // Blazing Red starts earlier (40°C / 104°F)
+  { tempFelsius: 85, r: 159, g: 18, b: 57 },  // Deep Crimson / Heat Dome limit
 ];
 
 function interpolateColor(felsius: number): string {

@@ -342,79 +342,78 @@ const heroCallbackRef = useCallback((node: HTMLElement | null) => {
       )}
 
       {/* Hourly Strip */}
-      <section className="glass-panel p-4 sm:p-5">
-        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-foreground/60 mb-4 border-b border-black/5 pb-3">
-          <Clock className="w-4 h-4" />
-          <span>Hourly Forecast</span>
-        </div>
-        <div className="flex gap-4 sm:gap-6 overflow-x-auto pb-2 scrollbar-hide snap-x">
-          {timeline.map((item) => {
-            if (item.kind === 'sun') {
-              const SunIcon = item.event === 'sunrise' ? Sunrise : Sunset;
-              const formattedSunTime = formatTime(item.time, settings.timeFormat);
-              const [timeDigits, ampm] = formattedSunTime.split(' ');
-
-              return (
-                <div
-                  key={`sun-${item.event}-${item.time.toISOString()}`}
-                  className="flex flex-col items-center gap-3 snap-start min-w-[3.5rem]"
-                >
-                  <span className="text-sm font-semibold text-foreground/50 capitalize">
-                    {item.event}
-                  </span>
-                  <SunIcon className="w-6 h-6 text-primary" strokeWidth={1.5} />
-                  <div className="flex flex-col items-center leading-none">
-                    <span className="text-lg font-medium tracking-tight font-mono">{timeDigits}</span>
-                    {ampm && <span className="text-sm font-medium tracking-tight font-mono mt-2.5">{ampm}</span>}
-                  </div>
-                  <div className="h-4" />
-                </div>
-              );
-            }
-
-            const i = item.index;
-            const timeStr = hourly.time[i];
-            const hourDate = item.time;
-            const isNow = i === startIdx;
-
-            const apiIsDay = isSpecialSun || (hourly.is_day ? hourly.is_day[i] === 1 : current.is_day === 1);
-            const isHourDay = isSpecialSun || (isNow ? isDay : apiIsDay);
-
-            const precipAmount = hourly.precipitation ? hourly.precipitation[i] : 0;
-            const hasMeasurableRain = precipAmount >= TRACE_PRECIPITATION_THRESHOLD;
-
-            const rawWeatherCode = hourly.weather_code[i];
-            let effectiveWeatherCode = rawWeatherCode;
-
-            if (
-              (!hasMeasurableRain && isPrecipitationCode(rawWeatherCode)) ||
-              (precipAmount >= TRACE_PRECIPITATION_THRESHOLD && (rawWeatherCode === 0 || rawWeatherCode === 1))
-            ) {
-              effectiveWeatherCode = 3;
-            }
-
-            const Icon = getWeatherIcon(effectiveWeatherCode, isHourDay ? 1 : 0);
-
-            const temp = hourly.temperature_2m[i];
-            const precip = hourly.precipitation_probability[i];
-
-            return (
-              <div key={timeStr} className="flex flex-col items-center gap-3 snap-start min-w-[3.5rem]">
-                <span className="text-sm font-semibold text-foreground/80">
-                  {isNow ? 'Now' : formatHourLabel(hourDate, settings.timeFormat)}
-                </span>
-                <Icon className="w-6 h-6 text-foreground/90" strokeWidth={1.5} />
-                <span className="text-lg font-medium tracking-tight">{formatFelsiusValue(temp)}°</span>
-                <div className="h-4 flex items-center justify-center">
-                  {precip > 0 && hasMeasurableRain && (
-                    <span className="text-xs font-bold text-sky-500">{precip}%</span>
-                  )}
-                </div>
+            <section className="glass-panel p-4 sm:p-5">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-foreground/60 mb-4 border-b border-black/5 pb-3">
+                <Clock className="w-4 h-4" />
+                <span>Hourly Forecast</span>
               </div>
-            );
-          })}
-        </div>
-      </section>
+              <div className="flex gap-4 sm:gap-6 overflow-x-auto pb-0 scrollbar-hide snap-x">
+                {timeline.map((item) => {
+                  if (item.kind === 'sun') {
+                    const SunIcon = item.event === 'sunrise' ? Sunrise : Sunset;
+                    const formattedSunTime = formatTime(item.time, settings.timeFormat);
+                    const [timeDigits, ampm] = formattedSunTime.split(' ');
+
+                    return (
+                      <div
+                        key={`sun-${item.event}-${item.time.toISOString()}`}
+                        className="flex flex-col items-center gap-3 snap-start min-w-[3.5rem]"
+                      >
+                        <span className="text-sm font-semibold text-foreground/50 capitalize">
+                          {item.event}
+                        </span>
+                        <SunIcon className="w-6 h-6 text-primary" strokeWidth={1.5} />
+                        <div className="flex flex-col items-center leading-none">
+                          <span className="text-lg font-medium tracking-tight font-mono">{timeDigits}</span>
+                          {ampm && <span className="text-sm font-medium tracking-tight font-mono mt-0.5">{ampm}</span>}
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  const i = item.index;
+                  const timeStr = hourly.time[i];
+                  const hourDate = item.time;
+                  const isNow = i === startIdx;
+
+                  const apiIsDay = isSpecialSun || (hourly.is_day ? hourly.is_day[i] === 1 : current.is_day === 1);
+                  const isHourDay = isSpecialSun || (isNow ? isDay : apiIsDay);
+
+                  const precipAmount = hourly.precipitation ? hourly.precipitation[i] : 0;
+                  const hasMeasurableRain = precipAmount >= TRACE_PRECIPITATION_THRESHOLD;
+
+                  const rawWeatherCode = hourly.weather_code[i];
+                  let effectiveWeatherCode = rawWeatherCode;
+
+                  if (
+                    (!hasMeasurableRain && isPrecipitationCode(rawWeatherCode)) ||
+                    (precipAmount >= TRACE_PRECIPITATION_THRESHOLD && (rawWeatherCode === 0 || rawWeatherCode === 1))
+                  ) {
+                    effectiveWeatherCode = 3;
+                  }
+
+                  const Icon = getWeatherIcon(effectiveWeatherCode, isHourDay ? 1 : 0);
+
+                  const temp = hourly.temperature_2m[i];
+                  const precip = hourly.precipitation_probability[i];
+
+                  return (
+                    <div key={timeStr} className="flex flex-col items-center gap-3 snap-start min-w-[3.5rem]">
+                      <span className="text-sm font-semibold text-foreground/80">
+                        {isNow ? 'Now' : formatHourLabel(hourDate, settings.timeFormat)}
+                      </span>
+                      <Icon className="w-6 h-6 text-foreground/90" strokeWidth={1.5} />
+                      <span className="text-lg font-medium tracking-tight">{formatFelsiusValue(temp)}°</span>
+                      <div className="h-4 flex items-center justify-center">
+                        {precip > 0 && hasMeasurableRain && (
+                          <span className="text-xs font-bold text-sky-500">{precip}%</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
 
       {/* 10-Day Forecast */}
       <section className="glass-panel p-4 sm:p-5">

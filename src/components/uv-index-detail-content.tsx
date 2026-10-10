@@ -25,7 +25,6 @@ function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
     return null;
   }
 
-  // Format the label based on user settings
   const hourForLabel = typeof label === 'number'
     ? label
     : (typeof label === 'string' && /^\d+$/.test(label) ? parseInt(label, 10) : 0);
@@ -35,7 +34,6 @@ function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
     : `${hourForLabel.toString().padStart(2, '0')}:00`;
 
   return (
-    // Updated to use semantic theme variables for background and border
     <div className="bg-background py-3 px-3 border border-border rounded-[10px] shadow-sm text-sm flex flex-col gap-1">
       <p className="text-foreground text-[16px]">{displayLabel}</p>
       <p style={{ color: 'hsl(var(--primary))' }} className="font-medium text-base">
@@ -124,23 +122,40 @@ export function UVIndexDetailContent({ hourly, initialDayIndex, timezone }: UVIn
     windowText = "Low levels throughout the day.";
   }
 
+  // Calculate maximum UV value for the day to dynamically scale gradient stops
+  const maxUv = Math.max(...dayData.map(d => d.value), 1);
+
+  // Helper function to convert absolute UV values into percentages relative to today's peak
+  const uvToOffset = (uv: number) => {
+    if (uv >= maxUv) return "0%";
+    const pct = Math.max(0, Math.min(100, (1 - uv / maxUv) * 100));
+    return `${pct.toFixed(1)}%`;
+  };
+
   return (
     <div className="w-full flex flex-col gap-4"> 
       
-      {/* Applied dark mode backgrounds and borders to mirror the info box */}
       <div className="h-64 w-full bg-black/[0.03] dark:bg-white/5 rounded-xl p-4 border border-black/5 dark:border-white/10">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={dayData} margin={{ top: 30, right: 10, left: 0, bottom: 0 }}>
             <defs>
               <linearGradient id="uvGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#d946ef" />
-                <stop offset="25%" stopColor="#f43f5e" />
-                <stop offset="50%" stopColor="#f97316" />
-                <stop offset="75%" stopColor="#eab308" />
-                <stop offset="100%" stopColor="#22c55e" />
+                {/* Extreme Purple (11+) */}
+                {maxUv >= 11 && <stop offset={uvToOffset(11)} stopColor="#AF52DE" stopOpacity={0.8} />}
+                
+                {/* Very High Red (8-10) */}
+                {maxUv >= 8 && <stop offset={uvToOffset(8)} stopColor="#FF3B30" stopOpacity={0.8} />}
+                
+                {/* High Orange (6-7) */}
+                {maxUv >= 6 && <stop offset={uvToOffset(6)} stopColor="#FF9500" stopOpacity={0.8} />}
+                
+                {/* Moderate Yellow (3-5) */}
+                {maxUv >= 3 && <stop offset={uvToOffset(3)} stopColor="#FFD200" stopOpacity={0.7} />}
+                
+                {/* Low Green (0-2) */}
+                <stop offset="100%" stopColor="#48D261" stopOpacity={0.6} />
               </linearGradient>
             </defs>
-            {/* Switched to CSS variable for stroke to support dark/light themes */}
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
             <XAxis 
               dataKey="time"
@@ -164,7 +179,6 @@ export function UVIndexDetailContent({ hourly, initialDayIndex, timezone }: UVIn
                 return (
                   <g transform={`translate(${x},${y + 10})`}>
                     {display.map((text, i) => (
-                      // Switched fill to standard muted-foreground variable
                       <text key={i} x={0} y={i * 12} textAnchor="middle" fontSize={10} fill="hsl(var(--muted-foreground))">
                         {text}
                       </text>
@@ -173,22 +187,26 @@ export function UVIndexDetailContent({ hourly, initialDayIndex, timezone }: UVIn
                 );
               }}
             />
-            {/* Switched tick fill to standard muted-foreground variable */}
             <YAxis domain={[0, 12]} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} tickCount={4} />
-            <Area type="monotone" dataKey="value" stroke="#f97316" fill="url(#uvGradient)" strokeWidth={2} />
+            <Area 
+              type="monotone" 
+              dataKey="value" 
+              stroke="url(#uvGradient)" 
+              fill="url(#uvGradient)" 
+              strokeWidth={2} 
+            />
             <ReferenceLine 
               x={nowIndex} 
               xAxisId={0} 
-              stroke="hsl(var(--foreground))" // Replaced hardcoded black
+              stroke="hsl(var(--foreground))" 
               strokeDasharray="3 3" 
-              label={{ value: 'Now', position: 'top', fontSize: 14, fill: 'hsl(var(--foreground))' }} // Replaced hardcoded black
+              label={{ value: 'Now', position: 'top', fontSize: 14, fill: 'hsl(var(--foreground))' }} 
             />
             <Tooltip content={<CustomTooltip />} />
           </AreaChart>
         </ResponsiveContainer>
       </div>
 
-      {/* Info Box (Dark mode was already correctly implemented here) */}
       <div className="p-4 rounded-xl bg-black/[0.03] border border-black/5 text-sm text-foreground/80 dark:bg-white/5 dark:border-white/10 mt-4">
         <h3 className="font-semibold mb-2 text-foreground">About UV Index</h3>
         <p className="mb-4">
@@ -198,14 +216,14 @@ export function UVIndexDetailContent({ hourly, initialDayIndex, timezone }: UVIn
 
         <div className="flex w-full">
           <div className="flex-1 flex flex-col gap-2">
-            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-green-500"></div> Low (0-2)</div>
-            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-orange-500"></div> High (6-7)</div>
-            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-purple-500"></div> Extreme (11+)</div>
+            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#48D261]"></div> Low (0-2)</div>
+            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#FF9500]"></div> High (6-7)</div>
+            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#AF52DE]"></div> Extreme (11+)</div>
           </div>
           
           <div className="flex-1 flex flex-col gap-2">
-            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-yellow-500"></div> Moderate (3-5)</div>
-            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-red-500"></div> Very High (8-10)</div>
+            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#FFD200]"></div> Moderate (3-5)</div>
+            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#FF3B30]"></div> Very High (8-10)</div>
           </div>
         </div>
       </div>
