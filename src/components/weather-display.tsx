@@ -78,29 +78,29 @@ export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplay
   const [showStickyHeader, setShowStickyHeader] = useState(false);
   const observerRef = useRef<IntersectionObserver | null>(null);
 
-const heroCallbackRef = useCallback((node: HTMLElement | null) => {
-  if (observerRef.current) {
-    observerRef.current.disconnect();
-  }
+  const heroCallbackRef = useCallback((node: HTMLElement | null) => {
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+    }
 
-  if (node) {
-    observerRef.current = new IntersectionObserver(
-      ([entry]) => {
-        // Trigger only when the hero section has scrolled fully off-screen top
-        const isScrolledPast = !entry.isIntersecting && entry.boundingClientRect.top <= 0;
-        setShowStickyHeader(isScrolledPast);
-      },
-      {
-        root: null,
-        // Using threshold 0.1 or a negative top rootMargin delays execution until the element leaves the screen completely
-        threshold: 0,
-        rootMargin: '-80px 0px 0px 0px', // Pushes the trigger zone down by 80px
-      }
-    );
+    if (node) {
+      observerRef.current = new IntersectionObserver(
+        ([entry]) => {
+          // Trigger only when the hero section has scrolled fully off-screen top
+          const isScrolledPast = !entry.isIntersecting && entry.boundingClientRect.top <= 0;
+          setShowStickyHeader(isScrolledPast);
+        },
+        {
+          root: null,
+          // Using threshold 0.1 or a negative top rootMargin delays execution until the element leaves the screen completely
+          threshold: 0,
+          rootMargin: '-80px 0px 0px 0px', // Pushes the trigger zone down by 80px
+        }
+      );
 
-    observerRef.current.observe(node);
-  }
-}, []);
+      observerRef.current.observe(node);
+    }
+  }, []);
 
   const { data, isLoading, error } = useWeather(location.latitude, location.longitude);
   const { data: airQuality } = useAirQuality(location.latitude, location.longitude);
@@ -342,78 +342,78 @@ const heroCallbackRef = useCallback((node: HTMLElement | null) => {
       )}
 
       {/* Hourly Strip */}
-            <section className="glass-panel p-4 sm:p-5">
-              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-foreground/60 mb-4 border-b border-black/5 pb-3">
-                <Clock className="w-4 h-4" />
-                <span>Hourly Forecast</span>
+      <section className="glass-panel p-4 sm:p-5">
+        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-foreground/60 mb-4 border-b border-black/5 pb-3">
+          <Clock className="w-4 h-4" />
+          <span>Hourly Forecast</span>
+        </div>
+        <div className="flex gap-4 sm:gap-6 overflow-x-auto pb-0 scrollbar-hide snap-x">
+          {timeline.map((item) => {
+            if (item.kind === 'sun') {
+              const SunIcon = item.event === 'sunrise' ? Sunrise : Sunset;
+              const formattedSunTime = formatTime(item.time, settings.timeFormat);
+              const [timeDigits, ampm] = formattedSunTime.split(' ');
+
+              return (
+                <div
+                  key={`sun-${item.event}-${item.time.toISOString()}`}
+                  className="flex flex-col items-center gap-3 snap-start min-w-[3.5rem]"
+                >
+                  <span className="text-sm font-semibold text-foreground/50 capitalize">
+                    {item.event}
+                  </span>
+                  <SunIcon className="w-6 h-6 text-primary" strokeWidth={1.5} />
+                  <div className="flex flex-col items-center leading-none">
+                    <span className="text-lg font-medium tracking-tight font-mono">{timeDigits}</span>
+                    {ampm && <span className="text-sm font-medium tracking-tight font-mono mt-0.5">{ampm}</span>}
+                  </div>
+                </div>
+              );
+            }
+
+            const i = item.index;
+            const timeStr = hourly.time[i];
+            const hourDate = item.time;
+            const isNow = i === startIdx;
+
+            const apiIsDay = isSpecialSun || (hourly.is_day ? hourly.is_day[i] === 1 : current.is_day === 1);
+            const isHourDay = isSpecialSun || (isNow ? isDay : apiIsDay);
+
+            const precipAmount = hourly.precipitation ? hourly.precipitation[i] : 0;
+            const hasMeasurableRain = precipAmount >= TRACE_PRECIPITATION_THRESHOLD;
+
+            const rawWeatherCode = hourly.weather_code[i];
+            let effectiveWeatherCode = rawWeatherCode;
+
+            if (
+              (!hasMeasurableRain && isPrecipitationCode(rawWeatherCode)) ||
+              (precipAmount >= TRACE_PRECIPITATION_THRESHOLD && (rawWeatherCode === 0 || rawWeatherCode === 1))
+            ) {
+              effectiveWeatherCode = 3;
+            }
+
+            const Icon = getWeatherIcon(effectiveWeatherCode, isHourDay ? 1 : 0);
+
+            const temp = hourly.temperature_2m[i];
+            const precip = hourly.precipitation_probability[i];
+
+            return (
+              <div key={`${timeStr}-${i}`} className="flex flex-col items-center gap-3 snap-start min-w-[3.5rem]">
+                <span className="text-sm font-semibold text-foreground/80">
+                  {isNow ? 'Now' : formatHourLabel(hourDate, settings.timeFormat)}
+                </span>
+                <Icon className="w-6 h-6 text-foreground/90" strokeWidth={1.5} />
+                <span className="text-lg font-medium tracking-tight">{formatFelsiusValue(temp)}°</span>
+                <div className="h-4 flex items-center justify-center">
+                  {precip > 0 && hasMeasurableRain && (
+                    <span className="text-xs font-bold text-sky-500">{precip}%</span>
+                  )}
+                </div>
               </div>
-              <div className="flex gap-4 sm:gap-6 overflow-x-auto pb-0 scrollbar-hide snap-x">
-                {timeline.map((item) => {
-                  if (item.kind === 'sun') {
-                    const SunIcon = item.event === 'sunrise' ? Sunrise : Sunset;
-                    const formattedSunTime = formatTime(item.time, settings.timeFormat);
-                    const [timeDigits, ampm] = formattedSunTime.split(' ');
-
-                    return (
-                      <div
-                        key={`sun-${item.event}-${item.time.toISOString()}`}
-                        className="flex flex-col items-center gap-3 snap-start min-w-[3.5rem]"
-                      >
-                        <span className="text-sm font-semibold text-foreground/50 capitalize">
-                          {item.event}
-                        </span>
-                        <SunIcon className="w-6 h-6 text-primary" strokeWidth={1.5} />
-                        <div className="flex flex-col items-center leading-none">
-                          <span className="text-lg font-medium tracking-tight font-mono">{timeDigits}</span>
-                          {ampm && <span className="text-sm font-medium tracking-tight font-mono mt-0.5">{ampm}</span>}
-                        </div>
-                      </div>
-                    );
-                  }
-
-                  const i = item.index;
-                  const timeStr = hourly.time[i];
-                  const hourDate = item.time;
-                  const isNow = i === startIdx;
-
-                  const apiIsDay = isSpecialSun || (hourly.is_day ? hourly.is_day[i] === 1 : current.is_day === 1);
-                  const isHourDay = isSpecialSun || (isNow ? isDay : apiIsDay);
-
-                  const precipAmount = hourly.precipitation ? hourly.precipitation[i] : 0;
-                  const hasMeasurableRain = precipAmount >= TRACE_PRECIPITATION_THRESHOLD;
-
-                  const rawWeatherCode = hourly.weather_code[i];
-                  let effectiveWeatherCode = rawWeatherCode;
-
-                  if (
-                    (!hasMeasurableRain && isPrecipitationCode(rawWeatherCode)) ||
-                    (precipAmount >= TRACE_PRECIPITATION_THRESHOLD && (rawWeatherCode === 0 || rawWeatherCode === 1))
-                  ) {
-                    effectiveWeatherCode = 3;
-                  }
-
-                  const Icon = getWeatherIcon(effectiveWeatherCode, isHourDay ? 1 : 0);
-
-                  const temp = hourly.temperature_2m[i];
-                  const precip = hourly.precipitation_probability[i];
-
-                  return (
-                    <div key={timeStr} className="flex flex-col items-center gap-3 snap-start min-w-[3.5rem]">
-                      <span className="text-sm font-semibold text-foreground/80">
-                        {isNow ? 'Now' : formatHourLabel(hourDate, settings.timeFormat)}
-                      </span>
-                      <Icon className="w-6 h-6 text-foreground/90" strokeWidth={1.5} />
-                      <span className="text-lg font-medium tracking-tight">{formatFelsiusValue(temp)}°</span>
-                      <div className="h-4 flex items-center justify-center">
-                        {precip > 0 && hasMeasurableRain && (
-                          <span className="text-xs font-bold text-sky-500">{precip}%</span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
+            );
+          })}
+        </div>
+      </section>
 
       {/* 10-Day Forecast */}
       <section className="glass-panel p-4 sm:p-5">
@@ -501,51 +501,58 @@ const heroCallbackRef = useCallback((node: HTMLElement | null) => {
       {/* Grid of Cards */}
       <div className="grid grid-cols-2 gap-4">
         {airQuality && (
-          <DetailSheet
-            title="Air Quality"
-            icon={Wind}
-            trigger={
-              <button className={CARD_TRIGGER_CLASS}>
-                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-foreground/60 mb-2">
-                  <Wind className="w-4 h-4" />
-                  <span>Air Quality</span>
-                </div>
-                {(() => {
-                  const band = getAqiBand(airQuality.us_aqi);
-                  const position = getAqiPosition(airQuality.us_aqi);
-                  return (
-                    <div className="mt-auto space-y-4 pt-4 w-full">
-                      <div className="space-y-1">
-                        <div className="text-3xl font-medium tracking-tight">{Math.round(airQuality.us_aqi)}</div>
-                        <div className="text-[15px] font-semibold leading-tight">{band.label}</div>
-                      </div>
-                      <div className="relative h-1.5 rounded-full bg-black/5 overflow-hidden w-full">
-                        <div
-                          className="absolute inset-0"
-                          style={{
-                            background:
-                              'linear-gradient(to right, rgb(34 197 94), rgb(234 179 8), rgb(249 115 22), rgb(239 68 68), rgb(168 85 247), rgb(136 19 55))',
-                          }}
-                        />
-                        <div
-                          className="absolute top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-white shadow-sm ring-1 ring-black/20"
-                          style={{ left: `${Math.max(0, Math.min(98, position * 100))}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })()}
-              </button>
-            }
-          >
-            <AirQualityDetailContent
-              airQuality={airQuality}
-              current={current}
-              gasUnit={(settings as any).airPollutionUnit ?? 'μg/m³'}
-              pmUnit={(settings as any).particulatePollutionUnit ?? 'μg/m³'}
-            />
-          </DetailSheet>
-        )}
+                  <DetailSheet
+                    title="Air Quality"
+                    icon={Wind}
+                    trigger={
+                      <button className={CARD_TRIGGER_CLASS}>
+                        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-foreground/60 mb-2">
+                          <Wind className="w-4 h-4" />
+                          <span>Air Quality</span>
+                        </div>
+                        {(() => {
+                          const band = getAqiBand(airQuality.us_aqi);
+                          const position = getAqiPosition(airQuality.us_aqi);
+                          return (
+                            <div className="mt-auto space-y-4 pt-4 w-full">
+                              <div className="space-y-1">
+                                <div className="text-3xl font-medium tracking-tight">
+                                  {Math.round(airQuality.us_aqi)}
+                                </div>
+                                  <div
+                                    className="text-[15px] font-semibold leading-tight tracking-tight"
+                                    title={band.label}
+                                  >
+                                    {band.label}
+                                  </div>
+                              </div>
+                              <div className="relative h-1.5 rounded-full bg-black/5 overflow-hidden w-full">
+                                <div
+                                  className="absolute inset-0"
+                                  style={{
+                                    background:
+                                      'linear-gradient(to right, rgb(34 197 94), rgb(234 179 8), rgb(249 115 22), rgb(239 68 68), rgb(168 85 247), rgb(136 19 55))',
+                                  }}
+                                />
+                                <div
+                                  className="absolute top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-white shadow-sm ring-1 ring-black/20"
+                                  style={{ left: `${Math.max(0, Math.min(98, position * 100))}%` }}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </button>
+                    }
+                  >
+                    <AirQualityDetailContent
+                      airQuality={airQuality}
+                      current={current}
+                      gasUnit={(settings as any).airPollutionUnit ?? 'μg/m³'}
+                      pmUnit={(settings as any).particulatePollutionUnit ?? 'μg/m³'}
+                    />
+                  </DetailSheet>
+                )}
 
         <DetailSheet
           title="Sunrise & Sunset"

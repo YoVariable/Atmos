@@ -100,7 +100,7 @@ export async function searchCities(query: string): Promise<GeocodeResult[]> {
   if (!query.trim()) return [];
   const url = new URL('https://geocoding-api.open-meteo.com/v1/search');
   url.searchParams.set('name', query);
-  url.searchParams.set('count', '8');
+  url.searchParams.set('count', '20'); // Up from 8 to pull smaller municipalities
   url.searchParams.set('language', 'en');
   url.searchParams.set('format', 'json');
 
@@ -130,8 +130,6 @@ export async function searchCities(query: string): Promise<GeocodeResult[]> {
 
 /**
  * Gates weather codes against actual precipitation volume.
- * If the code implies precipitation (51-99) but the volume is negligible,
- * it overwrites the code to 3 (Overcast) to prevent rendering rain/snow icons.
  */
 function gateTracePrecipitation(code: number, precipAmount: number): number {
   const isPrecipitationCode = code >= 51 && code <= 99;
@@ -140,6 +138,108 @@ function gateTracePrecipitation(code: number, precipAmount: number): number {
     return 3; // Overcast
   }
   return code;
+}
+
+/**
+ * Maps Canadian permanent DST timezones to their permanent UTC offset targets.
+ * BC/Yukon = UTC-7, AB/NWT = UTC-6, MB/NW-Ontario = UTC-5
+ */
+function getTargetUtcOffset(lat: number, lng: number, timezone: string): number | null {
+  const tz = timezone.toLowerCase();
+
+  // 1. Pacific Zone (UTC-7)
+  if (tz.includes('vancouver') || tz.includes('whitehorse') || tz.includes('dawson')) {
+    return -7; //
+  }
+  // 2. Mountain Zone (UTC-6)
+  if (tz.includes('edmonton') || tz.includes('yellowknife') || tz.includes('inuvik') || tz.includes('regina')) {
+    return -6; //
+  }
+  // 3. Central Zone (UTC-5)
+  if (tz.includes('winnipeg') || tz.includes('rainy_river') || tz.includes('kenora')) {
+    return -5; //
+  }
+
+  // Geographic Bounding Box Fallback for Western Canada & Northwest Territories
+  if (lat >= 48.0 && lat <= 75.0 && lng >= -141.0 && lng <= -88.0) {
+    if (lng < -114.0) return -7; // BC / Yukon
+    if (lng < -102.0) return -6; // AB / NWT / SK
+    return -5;                    // MB / NW Ontario
+  }
+
+  return null; // Not a permanent DST zone (e.g. Toronto, Montreal, Halifax)
+}
+
+/**
+ * Shifts an ISO local time string by a given number of hours.
+ */
+function shiftIsoString(isoStr: string, hoursToAdd: number): string {
+  const match = isoStr.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/);
+  if (!match) return isoStr;
+  
+  let [, year, month, day, hour, minute, second] = match;
+  const d = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day), Number(hour) + hoursToAdd, Number(minute), Number(second || 0)));
+  
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  const y = d.getUTCFullYear();
+  const m = pad(d.getUTCMonth() + 1);
+  const dayStr = pad(d.getUTCDate());
+  const h = pad(d.getUTCHours());
+  const min = pad(d.getUTCMinutes());
+  const sec = second !== undefined ? `:${pad(d.getUTCSeconds())}` : '';
+  
+  return `${y}-${m}-${dayStr}T${h}:${min}${sec}`;
+}
+
+/**
+ * Adjusts timestamps for Canadian permanent-DST zones during winter months
+ * ONLY if the upstream API payload is still using legacy fall-back offsets.
+ */
+function applyCanadaPermanentOffset(data: ForecastResponse, latitude: number, longitude: number): ForecastResponse {
+  const targetOffset = getTargetUtcOffset(latitude, longitude, data.timezone);
+
+  // Exit early if the location is not in a Canadian permanent-DST zone
+  if (targetOffset === null) {
+    return data;
+  }
+
+  // Determine if upstream API is still delivering legacy standard-time local hours
+  if (data.current && data.current.time) {
+    const apiCurrentHour = new Date(data.current.time + 'Z').getUTCHours();
+    const utcHour = new Date().getUTCHours();
+    const expectedLocalHour = (utcHour + targetOffset + 24) % 24;
+
+    // Check if the API current hour matches our expected permanent local hour
+    const isLaggingBehind = apiCurrentHour !== expectedLocalHour;
+
+    if (!isLaggingBehind) {
+      // Upstream API has already updated its tzdb rules; no shift needed!
+      return data;
+    }
+  }
+
+  // Upstream is still lagging behind: add +1 hour shift to enforce permanent DST
+  const transitionThreshold = '2026-11-01T00:00'; //
+  const adjustTime = (t: string) => (t >= transitionThreshold ? shiftIsoString(t, 1) : t);
+
+  if (data.current && data.current.time) {
+    data.current.time = adjustTime(data.current.time);
+  }
+
+  if (data.hourly && data.hourly.time) {
+    data.hourly.time = data.hourly.time.map(adjustTime);
+  }
+
+  if (data.daily) {
+    if (data.daily.sunrise) {
+      data.daily.sunrise = data.daily.sunrise.map(adjustTime);
+    }
+    if (data.daily.sunset) {
+      data.daily.sunset = data.daily.sunset.map(adjustTime);
+    }
+  }
+
+  return data;
 }
 
 export async function getForecast(
@@ -206,7 +306,10 @@ export async function getForecast(
 
   if (!res.ok) throw new Error('Failed to fetch forecast');
 
-  const data: ForecastResponse = await res.json();
+  let data: ForecastResponse = await res.json();
+
+  // --- APPLY CANADA PERMANENT DST OFFSET OVERRIDE ---
+  data = applyCanadaPermanentOffset(data, latitude, longitude);
 
   // --- 1. GATE TRACE PRECIPITATION ---
   if (data.current) {

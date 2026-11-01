@@ -7,29 +7,17 @@ export function useDayNight(lat: number, lng: number, timezone?: string) {
   useEffect(() => {
     const checkTime = () => {
       const now = new Date();
-      
-      // Shift the date to the target city's timezone to handle midnight rollovers
-      let targetDate = now;
-      if (timezone) {
-        try {
-          // Creates a string of the local time in the target city, then parses it
-          const tzString = now.toLocaleString('en-US', { timeZone: timezone });
-          targetDate = new Date(tzString);
-        } catch (e) {
-          console.warn("Invalid timezone string, falling back to local time");
-        }
-      }
+      const times = SunCalc.getTimes(now, lat, lng);
 
-      // Calculate sun times for that specific calendar day
-      const times = SunCalc.getTimes(targetDate, lat, lng);
-
-      // SAFETY CHECK: Handle polar regions where the sun doesn't set/rise
-      if (!times.sunrise || !times.sunset) {
-        setIsDay(true);
+      // SAFETY CHECK: Handle polar regions or missing times where sunrise/sunset are null/undefined
+      if (!times.sunrise || !times.sunset || isNaN(times.sunrise.getTime()) || isNaN(times.sunset.getTime())) {
+        const position = SunCalc.getPosition(now, lat, lng);
+        setIsDay(position.altitude > 0);
         return;
       }
 
-      setIsDay(targetDate >= times.sunrise && targetDate <= times.sunset);
+      const nowTime = now.getTime();
+      setIsDay(nowTime >= times.sunrise.getTime() && nowTime <= times.sunset.getTime());
     };
 
     checkTime(); // Run immediately
