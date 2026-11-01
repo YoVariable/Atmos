@@ -499,50 +499,50 @@ export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplay
       </section>
 
       {/* Grid of Cards */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-4 items-start">
         {airQuality && (
                   <DetailSheet
                     title="Air Quality"
                     icon={Wind}
                     trigger={
-                      <button className={CARD_TRIGGER_CLASS}>
-                        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-foreground/60 mb-2">
-                          <Wind className="w-4 h-4" />
-                          <span>Air Quality</span>
-                        </div>
-                        {(() => {
-                          const band = getAqiBand(airQuality.us_aqi);
-                          const position = getAqiPosition(airQuality.us_aqi);
-                          return (
-                            <div className="mt-auto space-y-4 pt-4 w-full">
-                              <div className="space-y-1">
-                                <div className="text-3xl font-medium tracking-tight">
-                                  {Math.round(airQuality.us_aqi)}
-                                </div>
-                                  <div
-                                    className="text-[15px] font-semibold leading-tight tracking-tight"
-                                    title={band.label}
-                                  >
-                                    {band.label}
-                                  </div>
+                    <button className={`${CARD_TRIGGER_CLASS} justify-between`}>
+                      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-foreground/60 mb-2">
+                        <Wind className="w-4 h-4" />
+                        <span>Air Quality</span>
+                      </div>
+                      {(() => {
+                        const band = getAqiBand(airQuality.us_aqi);
+                        const position = getAqiPosition(airQuality.us_aqi);
+                        return (
+                          <div className="mt-auto space-y-5 pt-2 w-full">
+                            <div className="space-y-1">
+                              <div className="text-3xl font-medium tracking-tight">
+                                {Math.round(airQuality.us_aqi)}
                               </div>
-                              <div className="relative h-1.5 rounded-full bg-black/5 overflow-hidden w-full">
-                                <div
-                                  className="absolute inset-0"
-                                  style={{
-                                    background:
-                                      'linear-gradient(to right, rgb(34 197 94), rgb(234 179 8), rgb(249 115 22), rgb(239 68 68), rgb(168 85 247), rgb(136 19 55))',
-                                  }}
-                                />
-                                <div
-                                  className="absolute top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-white shadow-sm ring-1 ring-black/20"
-                                  style={{ left: `${Math.max(0, Math.min(98, position * 100))}%` }}
-                                />
+                              <div
+                                className="text-[15px] font-semibold leading-tight tracking-tight text-foreground"
+                                title={band.label}
+                              >
+                                {band.label}
                               </div>
                             </div>
-                          );
-                        })()}
-                      </button>
+                            <div className="relative h-1.5 rounded-full bg-black/5 overflow-hidden w-full">
+                              <div
+                                className="absolute inset-0"
+                                style={{
+                                  background:
+                                    'linear-gradient(to right, rgb(34 197 94), rgb(234 179 8), rgb(249 115 22), rgb(239 68 68), rgb(168 85 247), rgb(136 19 55))',
+                                }}
+                              />
+                              <div
+                                className="absolute top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-white shadow-sm ring-1 ring-black/20"
+                                style={{ left: `${Math.max(0, Math.min(98, position * 100))}%` }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </button>
                     }
                   >
                     <AirQualityDetailContent
@@ -564,7 +564,7 @@ export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplay
                 <span>{showSunsetPrimary ? 'Sunset' : 'Sunrise'}</span>
               </div>
               <div className="mt-auto pt-4 space-y-4">
-                <div className="text-3xl font-medium tracking-tight relative -top-1">
+                <div className="text-3xl font-medium tracking-tight relative -top-0.5">
                   {primaryLabel}
                 </div>
                 <div className="text-[15px] font-semibold text-foreground/80">
