@@ -385,21 +385,40 @@ export async function reverseGeocode(
     url.searchParams.set('format', 'jsonv2');
     url.searchParams.set('lat', String(latitude));
     url.searchParams.set('lon', String(longitude));
+    // Set high detail zoom level (18 = building/street level detail)
+    url.searchParams.set('zoom', '18'); 
     
-    const res = await fetch(url.toString());
+    const res = await fetch(url.toString(), {
+      headers: {
+        'User-Agent': 'AtmosWeatherApp/1.5.1'
+      }
+    });
+
     if (res.ok) {
-        const data = await res.json();
-        const addr = data.address;
-        
-        if (addr) {
-            const localCity = addr.city || addr.town || addr.village || addr.suburb || addr.neighbourhood;
-            if (localCity) return localCity;
-        }
+      const data = await res.json();
+      const addr = data.address;
+      
+      if (addr) {
+        // Prioritize fine-grained locality -> suburb -> district -> broader city
+        const localName = 
+          addr.neighbourhood ||
+          addr.suburb ||
+          addr.quarter ||
+          addr.district ||
+          addr.borough ||
+          addr.town ||
+          addr.village ||
+          addr.hamlet ||
+          addr.city;
+
+        if (localName) return localName;
+      }
     }
   } catch (error) {
     console.warn("Nominatim geocoding failed, trying fallback:", error);
   }
 
+  // Fallback: BigDataCloud reverse geocode client
   try {
     const fallbackUrl = new URL('https://api.bigdatacloud.net/data/reverse-geocode-client');
     fallbackUrl.searchParams.set('latitude', String(latitude));
@@ -410,7 +429,14 @@ export async function reverseGeocode(
     if (!res.ok) return null;
     
     const data = await res.json();
-    return data.locality || data.city || data.principalSubdivision || null;
+    // Prioritize locality / sublocality over broad city / subdivision
+    return (
+      data.localityInfo?.informative?.find((i: any) => i.order === 4)?.name ||
+      data.locality || 
+      data.city || 
+      data.principalSubdivision || 
+      null
+    );
   } catch (fallbackError) {
     console.error("All reverse geocoding paths failed:", fallbackError);
     return null;

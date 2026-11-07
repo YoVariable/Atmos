@@ -148,9 +148,13 @@ export function CompassModal({ isOpen, onClose }: CompassModalProps) {
         url.searchParams.set('format', 'jsonv2');
         url.searchParams.set('lat', String(lat));
         url.searchParams.set('lon', String(lon));
+        url.searchParams.set('zoom', '18');
         
         const res = await fetch(url.toString(), {
-          headers: { 'Accept-Language': 'en' }
+          headers: { 
+            'Accept-Language': 'en',
+            'User-Agent': 'AtmosWeatherApp/1.5.1'
+          }
         });
 
         if (res.ok) {
@@ -158,7 +162,7 @@ export function CompassModal({ isOpen, onClose }: CompassModalProps) {
           const addr = data.address;
           
           if (addr) {
-            const city = addr.suburb || addr.neighbourhood || addr.city_district || addr.town || addr.city || addr.village || '';
+            const city = addr.neighbourhood || addr.neighborhood || addr.suburb || addr.city_district || addr.quarter || addr.district || addr.borough || addr.town || addr.village || addr.city || '';
             const rawState = addr.state || addr.region || '';
             let country = addr.country || '';
 
@@ -189,7 +193,7 @@ export function CompassModal({ isOpen, onClose }: CompassModalProps) {
         const res = await fetch(fallbackUrl.toString());
         if (res.ok) {
           const data = await res.json();
-          const city = data.suburb || data.locality || data.city || data.principalSubdivision || '';
+          const city = data.localityInfo?.informative?.find((i: any) => i.order === 4)?.name || data.suburb || data.locality || data.city || data.principalSubdivision || '';
           const rawState = data.principalSubdivision || '';
           let country = data.countryName || '';
 
@@ -247,7 +251,6 @@ export function CompassModal({ isOpen, onClose }: CompassModalProps) {
 
   // Centralized orientation handler
   const handleOrientation = useCallback((event: DeviceOrientationEvent & { absolute?: boolean; webkitCompassHeading?: number }) => {
-  
     if (event.type === 'deviceorientationabsolute') {
       absoluteActiveRef.current = true;
     } else if (event.type === 'deviceorientation' && absoluteActiveRef.current) {
@@ -305,8 +308,17 @@ export function CompassModal({ isOpen, onClose }: CompassModalProps) {
         const response = await (DeviceOrientationEvent as any).requestPermission();
         if (response === 'granted') {
           setNeedsUserGesture(false);
+          sensorFiredRef.current = false;
           window.addEventListener('deviceorientationabsolute', handleOrientation as EventListener, true);
           window.addEventListener('deviceorientation', handleOrientation as EventListener, true);
+          
+          // Timeout check for desktop browsers or hardware supporting requestPermission without physical sensors
+          setTimeout(() => {
+            if (!sensorFiredRef.current) {
+              setSensorAvailable(false);
+            }
+          }, 1000);
+
         } else {
           setSensorAvailable(false);
           setPermissionDenied(true);

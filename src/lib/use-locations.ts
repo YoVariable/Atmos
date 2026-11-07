@@ -10,11 +10,34 @@ export interface SavedLocation extends GeocodeResult {
 }
 
 /** Reserved, stable id for the current-location entry so it is updated in
- * place (coords refreshed) instead of being duplicated every time the
- * browser's geolocation is re-read. This was the source of the "switching
- * doesn't update data" bug: every geolocation read previously created a
- * brand new entry with `Date.now()` as its id. */
+ * place (coords refreshed) instead of being duplicated every time. */
 const CURRENT_LOCATION_ID = -1;
+
+/** 
+ * Calculate distance between two coordinate points using the 
+ * exact IUGG arithmetic mean radius of Earth (6371.0088 km).
+ */
+function hasMovedSignificantly(
+  lat1: number, 
+  lon1: number, 
+  lat2: number, 
+  lon2: number, 
+  thresholdKm = 1.5
+): boolean {
+  const EARTH_RADIUS_KM = 6371.0088; 
+  const toRad = (value: number) => (value * Math.PI) / 180;
+  
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  
+  const a = 
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * 
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return (EARTH_RADIUS_KM * c) >= thresholdKm;
+}
 
 // 1. Create the Context
 const LocationsContext = createContext<ReturnType<typeof useLocationsValue> | null>(null);
@@ -26,7 +49,6 @@ export function LocationsProvider({ children }: { children: ReactNode }) {
 }
 
 function sortLocations(locations: SavedLocation[]): SavedLocation[] {
-  // Current location always leads the list, matching Apple Weather's convention.
   return [...locations].sort((a, b) => {
     if (a.isCurrent && !b.isCurrent) return -1;
     if (!a.isCurrent && b.isCurrent) return 1;
@@ -94,30 +116,24 @@ export function useLocationsValue() {
       setIsLocatingCurrent(true);
 
       try {
-        // 1. Get the highly accurate native position
-// 1. Get the highly accurate native position (Added maximumAge: 0!)
-      const position = await Geolocation.getCurrentPosition({
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0 
-      });
+        const position = await Geolocation.getCurrentPosition({
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0 
+        });
 
-      const { latitude, longitude } = position.coords;
-      // Default fallback now shows coordinates so we know if the API failed completely
-      let locationName = `API Blocked: ${latitude.toFixed(2)}, ${longitude.toFixed(2)}`; 
+        const { latitude, longitude } = position.coords;
+        let locationName = `API Blocked: ${latitude.toFixed(2)}, ${longitude.toFixed(2)}`; 
 
-// 2. ISOLATE THE GEOCODING API CALL 
-      try {
-        const fetchedName = await reverseGeocode(latitude, longitude);
-        if (fetchedName) {
-          // Back to a clean name without the coordinates appended!
-          locationName = fetchedName;
+        try {
+          const fetchedName = await reverseGeocode(latitude, longitude);
+          if (fetchedName) {
+            locationName = fetchedName;
+          }
+        } catch (geocodeError) {
+          console.warn("Reverse geocoding failed", geocodeError);
         }
-      } catch (geocodeError) {
-        console.warn("Reverse geocoding failed", geocodeError);
-      }
 
-        // 3. Update your app state
         upsertCurrentLocation({
           name: locationName,
           country: '',
@@ -135,19 +151,31 @@ export function useLocationsValue() {
         setIsLocatingCurrent(false);
       }
     },
-    [upsertCurrentLocation, setActiveLocationId] // Leave your existing dependencies here if there are others!
+    [upsertCurrentLocation, setActiveLocationId]
   );
 
-  // On first load, silently try to establish the current location so it is
-  // the first thing shown when the app opens. If permission was already
-  // granted this resolves instantly with no prompt; if denied, we just fall
-  // back to whatever locations are already saved.
+  // On first load, check if we need to set or auto-update current location based on distance shift (> 1.5 km)
   useEffect(() => {
     if (!isLoaded || hasAttemptedGeolocation.current) return;
     hasAttemptedGeolocation.current = true;
-    const hasCurrent = locations.some((l) => l.id === CURRENT_LOCATION_ID);
-    if (!hasCurrent) {
+
+    const existingCurrent = locations.find((l) => l.id === CURRENT_LOCATION_ID);
+
+    if (!existingCurrent) {
       refreshCurrentLocation({ makeActive: activeLocationId === null });
+    } else {
+      Geolocation.getCurrentPosition({
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+      }).then(async (position) => {
+        const { latitude, longitude } = position.coords;
+        if (hasMovedSignificantly(existingCurrent.latitude, existingCurrent.longitude, latitude, longitude, 1.5)) {
+          await refreshCurrentLocation();
+        }
+      }).catch((err) => {
+        console.warn("Background distance check skipped:", err);
+      });
     }
   }, [isLoaded, locations, activeLocationId, refreshCurrentLocation]);
 

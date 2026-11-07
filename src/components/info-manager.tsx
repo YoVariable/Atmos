@@ -120,7 +120,7 @@ export function InfoManager() {
         <div className="flex-1 overflow-y-auto space-y-6 text-sm text-muted-foreground pr-1.5 scrollbar-hide">
           {/* Atmos App Overview */}
           <div>
-            <h4 className="font-semibold text-foreground mb-1">Version 1.5.0</h4>
+            <h4 className="font-semibold text-foreground mb-1">Version 1.5.1</h4>
             <p className="leading-relaxed">
               Atmos provides precision weather metrics for the modern enthusiast. Designed for
               speed, clarity, and a unique perspective on local conditions.

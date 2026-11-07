@@ -92,9 +92,8 @@ export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplay
         },
         {
           root: null,
-          // Using threshold 0.1 or a negative top rootMargin delays execution until the element leaves the screen completely
           threshold: 0,
-          rootMargin: '-80px 0px 0px 0px', // Pushes the trigger zone down by 80px
+          rootMargin: '-80px 0px 0px 0px',
         }
       );
 
@@ -105,30 +104,15 @@ export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplay
   const { data, isLoading, error } = useWeather(location.latitude, location.longitude);
   const { data: airQuality } = useAirQuality(location.latitude, location.longitude);
 
-  const timezone = location.timezone === 'auto' ? undefined : location.timezone;
-  const cityTimeDate = new Date(new Date().toLocaleString('en-US', { timeZone: timezone }));
-  const cityTime = cityTimeDate.getHours() * 3600000 + cityTimeDate.getMinutes() * 60000;
-
-  const sunriseDate = new Date(data?.daily.sunrise[0] || 0);
-  const sunriseTime = sunriseDate.getHours() * 3600000 + sunriseDate.getMinutes() * 60000;
-
-  const sunsetDate = new Date(data?.daily.sunset[0] || 0);
-  const sunsetTime = sunsetDate.getHours() * 3600000 + sunsetDate.getMinutes() * 60000;
-
-  const isDay = cityTime > sunriseTime && cityTime < sunsetTime;
-
-  // Calculate index & effective weather code for current display
   const current = data?.current;
   const hourly = data?.hourly;
   const daily = data?.daily;
 
-  const currentHourStartMs = current
-    ? new Date(current.time).setHours(new Date(current.time).getHours(), 0, 0, 0)
-    : 0;
-
+  // Calculate start index for hourly items by matching the current hour prefix (e.g., "2026-11-07T22")
   let startIdx = 0;
-  if (hourly) {
-    const idx = hourly.time.findIndex((t) => new Date(t).getTime() >= currentHourStartMs);
+  if (hourly && current) {
+    const currentFormatted = current.time.slice(0, 13);
+    const idx = hourly.time.findIndex((t) => t.startsWith(currentFormatted));
     if (idx !== -1) startIdx = idx;
   }
 
@@ -202,7 +186,7 @@ export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplay
   const isSpecialSun = isPolarNight || isMidnightSun;
 
   // Determine card primary preview order for extreme latitudes vs standard days
-  const showSunsetPrimary = isMidnightSun || (!isPolarNight && isDay);
+  const showSunsetPrimary = isMidnightSun || (!isPolarNight && current.is_day === 1);
 
   const getEventLabel = (eventArray: string[], fallbackDate: Date) => {
     if (!isSpecialSun) return formatTime(fallbackDate, settings.timeFormat);
@@ -376,8 +360,9 @@ export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplay
             const hourDate = item.time;
             const isNow = i === startIdx;
 
-            const apiIsDay = isSpecialSun || (hourly.is_day ? hourly.is_day[i] === 1 : current.is_day === 1);
-            const isHourDay = isSpecialSun || (isNow ? isDay : apiIsDay);
+            // Explicitly evaluate daylight status per hour, taking into account Midnight Sun
+            const apiIsDay = hourly.is_day ? hourly.is_day[i] === 1 : current.is_day === 1;
+            const isHourDay = isMidnightSun || apiIsDay;
 
             const precipAmount = hourly.precipitation ? hourly.precipitation[i] : 0;
             const hasMeasurableRain = precipAmount >= TRACE_PRECIPITATION_THRESHOLD;
@@ -501,58 +486,58 @@ export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplay
       {/* Grid of Cards */}
       <div className="grid grid-cols-2 gap-4 items-start">
         {airQuality && (
-                  <DetailSheet
-                    title="Air Quality"
-                    icon={Wind}
-                    trigger={
-                    <button className={`${CARD_TRIGGER_CLASS} justify-between`}>
-                      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-foreground/60 mb-2">
-                        <Wind className="w-4 h-4" />
-                        <span>Air Quality</span>
+          <DetailSheet
+            title="Air Quality"
+            icon={Wind}
+            trigger={
+              <button className={`${CARD_TRIGGER_CLASS} justify-between`}>
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-foreground/60 mb-2">
+                  <Wind className="w-4 h-4" />
+                  <span>Air Quality</span>
+                </div>
+                {(() => {
+                  const band = getAqiBand(airQuality.us_aqi);
+                  const position = getAqiPosition(airQuality.us_aqi);
+                  return (
+                    <div className="mt-auto space-y-5 pt-2 w-full">
+                      <div className="space-y-1">
+                        <div className="text-3xl font-medium tracking-tight">
+                          {Math.round(airQuality.us_aqi)}
+                        </div>
+                        <div
+                          className="text-[15px] font-semibold leading-tight tracking-tight text-foreground"
+                          title={band.label}
+                        >
+                          {band.label}
+                        </div>
                       </div>
-                      {(() => {
-                        const band = getAqiBand(airQuality.us_aqi);
-                        const position = getAqiPosition(airQuality.us_aqi);
-                        return (
-                          <div className="mt-auto space-y-5 pt-2 w-full">
-                            <div className="space-y-1">
-                              <div className="text-3xl font-medium tracking-tight">
-                                {Math.round(airQuality.us_aqi)}
-                              </div>
-                              <div
-                                className="text-[15px] font-semibold leading-tight tracking-tight text-foreground"
-                                title={band.label}
-                              >
-                                {band.label}
-                              </div>
-                            </div>
-                            <div className="relative h-1.5 rounded-full bg-black/5 overflow-hidden w-full">
-                              <div
-                                className="absolute inset-0"
-                                style={{
-                                  background:
-                                    'linear-gradient(to right, rgb(34 197 94), rgb(234 179 8), rgb(249 115 22), rgb(239 68 68), rgb(168 85 247), rgb(136 19 55))',
-                                }}
-                              />
-                              <div
-                                className="absolute top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-white shadow-sm ring-1 ring-black/20"
-                                style={{ left: `${Math.max(0, Math.min(98, position * 100))}%` }}
-                              />
-                            </div>
-                          </div>
-                        );
-                      })()}
-                    </button>
-                    }
-                  >
-                    <AirQualityDetailContent
-                      airQuality={airQuality}
-                      current={current}
-                      gasUnit={(settings as any).airPollutionUnit ?? 'μg/m³'}
-                      pmUnit={(settings as any).particulatePollutionUnit ?? 'μg/m³'}
-                    />
-                  </DetailSheet>
-                )}
+                      <div className="relative h-1.5 rounded-full bg-black/5 overflow-hidden w-full">
+                        <div
+                          className="absolute inset-0"
+                          style={{
+                            background:
+                              'linear-gradient(to right, rgb(34 197 94), rgb(234 179 8), rgb(249 115 22), rgb(239 68 68), rgb(168 85 247), rgb(136 19 55))',
+                          }}
+                        />
+                        <div
+                          className="absolute top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-white shadow-sm ring-1 ring-black/20"
+                          style={{ left: `${Math.max(0, Math.min(98, position))}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })()}
+              </button>
+            }
+          >
+            <AirQualityDetailContent
+              airQuality={airQuality}
+              current={current}
+              gasUnit={(settings as any).airPollutionUnit ?? 'μg/m³'}
+              pmUnit={(settings as any).particulatePollutionUnit ?? 'μg/m³'}
+            />
+          </DetailSheet>
+        )}
 
         <DetailSheet
           title="Sunrise & Sunset"
