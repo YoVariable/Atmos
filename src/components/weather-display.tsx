@@ -14,6 +14,8 @@ import {
   getTodayEffectiveCode,
   getFelsiusBarGradient,
   isPrecipitationCode,
+  getDominantDaytimeCode,
+  getEffectiveHourlyCode,
 } from '@/lib/weather-helpers';
 
 import {
@@ -71,12 +73,21 @@ const CARD_TRIGGER_CLASS =
 export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplayProps) {
   const { settings } = useSettings();
 
-  // Check explicit prop OR the location object's isCurrent flag OR id === 'current'
   const isCurrentLocation = isCurrent ?? location?.isCurrent ?? false;
 
-  // Sticky Header state and Callback Ref setup
   const [showStickyHeader, setShowStickyHeader] = useState(false);
   const observerRef = useRef<IntersectionObserver | null>(null);
+
+  // Active wall-clock timer state to force reactive UI updates
+  const [currentTime, setCurrentTime] = useState<Date>(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 30000); // Ticks every 30 seconds to catch precise solar transitions
+
+    return () => clearInterval(timer);
+  }, []);
 
   const heroCallbackRef = useCallback((node: HTMLElement | null) => {
     if (observerRef.current) {
@@ -86,7 +97,6 @@ export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplay
     if (node) {
       observerRef.current = new IntersectionObserver(
         ([entry]) => {
-          // Trigger only when the hero section has scrolled fully off-screen top
           const isScrolledPast = !entry.isIntersecting && entry.boundingClientRect.top <= 0;
           setShowStickyHeader(isScrolledPast);
         },
@@ -108,23 +118,16 @@ export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplay
   const hourly = data?.hourly;
   const daily = data?.daily;
 
-  // Calculate start index for hourly items by matching the current hour prefix (e.g., "2026-11-07T22")
   let startIdx = 0;
-  if (hourly && current) {
-    const currentFormatted = current.time.slice(0, 13);
-    const idx = hourly.time.findIndex((t) => t.startsWith(currentFormatted));
-    if (idx !== -1) startIdx = idx;
-  }
 
   const displayCode =
     hourly && current ? getTodayEffectiveCode(hourly, current, startIdx) : 0;
 
-  // Air Quality & UV Calculations
   const currentHour = new Intl.DateTimeFormat('en-US', {
     timeZone: airQuality?.timezone,
     hour: 'numeric',
     hourCycle: 'h23',
-  }).format(new Date());
+  }).format(currentTime);
 
   const nowIndex =
     airQuality?.hourly?.time?.findIndex(
@@ -133,15 +136,49 @@ export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplay
 
   const currentUvValue = airQuality?.hourly?.uv_index?.[nowIndex] ?? 0;
 
+  const locationTimeZone = data?.timezone || 'UTC';
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: locationTimeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).formatToParts(currentTime);
+
+  const getPart = (type: string) => parts.find((p) => p.type === type)?.value || '0';
+  const localNowStr = `${getPart('year')}-${getPart('month')}-${getPart('day')}T${getPart('hour')}:${getPart('minute')}:${getPart('second')}`;
+  const liveCityTime = new Date(localNowStr).getTime();
+
+  // Compute reactive startIdx based on local city wall clock
+  const localNowHourStr = localNowStr.slice(0, 13);
+  if (hourly) {
+    const idx = hourly.time.findIndex((t) => t.startsWith(localNowHourStr));
+    if (idx !== -1) startIdx = idx;
+  }
+
+  const sunrise = daily ? new Date(daily.sunrise[0]) : new Date();
+  const sunset = daily ? new Date(daily.sunset[0]) : new Date();
+
+  const isPolarNight = daily ? daily.daylight_duration[0] < 60 : false;
+  const isMidnightSun = daily ? daily.daylight_duration[0] > 86340 : false;
+  const isSpecialSun = isPolarNight || isMidnightSun;
+
+  // Real-time daylight flag overriding API lag
+  const isLiveDay = isSpecialSun
+    ? (isMidnightSun ? 1 : 0)
+    : (liveCityTime >= sunrise.getTime() && liveCityTime < sunset.getTime() ? 1 : 0);
+
+  // Synchronize dynamic ambient background glow
   useEffect(() => {
     if (isActive && current && daily) {
-      const isMidnightSun = daily.daylight_duration[0] > 86340;
-      const isDayFlag = isMidnightSun || current.is_day === 1 ? 1 : 0;
-      const color = getWeatherColor(displayCode, isDayFlag);
+      const color = getWeatherColor(displayCode, isLiveDay);
       const glow = document.getElementById('ambient-glow');
       if (glow) glow.style.backgroundColor = color;
     }
-  }, [current?.weather_code, current?.is_day, daily?.daylight_duration, displayCode, isActive, current, daily]);
+  }, [displayCode, isActive, current, daily, isLiveDay]);
 
   if (isLoading) {
     return (
@@ -174,35 +211,11 @@ export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplay
       : []),
   ];
 
-  const sunrise = new Date(daily.sunrise[0]);
-  const sunset = new Date(daily.sunset[0]);
-
-  // Compute live current time in the location's specific timezone down to the exact minute
-  const locationTimeZone = data.timezone || 'UTC';
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: locationTimeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-  }).formatToParts(new Date());
-
-  const getPart = (type: string) => parts.find((p) => p.type === type)?.value || '0';
-  const localNowStr = `${getPart('year')}-${getPart('month')}-${getPart('day')}T${getPart('hour')}:${getPart('minute')}:${getPart('second')}`;
-  const liveCityTime = new Date(localNowStr).getTime();
-
   const todayHigh = daily.temperature_2m_max[0];
   const todayLow = daily.temperature_2m_min[0];
 
-  const isPolarNight = daily.daylight_duration[0] < 60;
-  const isMidnightSun = daily.daylight_duration[0] > 86340;
-  const isSpecialSun = isPolarNight || isMidnightSun;
-
-  // Determine card primary preview order for extreme latitudes vs standard days
-  const showSunsetPrimary = isMidnightSun || (!isPolarNight && current.is_day === 1);
+  // Determine card primary preview order using real-time daylight logic
+  const showSunsetPrimary = isMidnightSun || (!isPolarNight && isLiveDay === 1);
 
   const getEventLabel = (eventArray: string[], fallbackDate: Date) => {
     if (!isSpecialSun) return formatTime(fallbackDate, settings.timeFormat);
@@ -279,7 +292,6 @@ export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplay
 
       {/* Hero Header */}
       <section ref={heroCallbackRef} className="flex flex-col items-center text-center mb-10 pt-2 sm:pt-4">
-        {/* Current Location Badge */}
         {isCurrentLocation && (
           <div className="flex items-center justify-center gap-1.5 text-xs font-semibold tracking-widest uppercase text-foreground/60 mb-1">
             <svg
@@ -293,12 +305,10 @@ export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplay
           </div>
         )}
 
-        {/* Large City Name Header */}
         <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground mb-1">
           {displayName}
         </h1>
 
-        {/* Condition */}
         <div className="text-lg text-foreground/80 mb-4 font-medium tracking-tight">
           {describeWeatherCode(displayCode)}
         </div>
@@ -377,9 +387,9 @@ export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplay
             const hourDate = item.time;
             const isNow = i === startIdx;
 
-            // Explicitly evaluate daylight status per hour, taking into account Midnight Sun
+            // Use isLiveDay for 'Now', falling back to hourly API flags for future hours
             const apiIsDay = isNow
-              ? current.is_day === 1
+              ? isLiveDay === 1
               : (hourly.is_day ? hourly.is_day[i] === 1 : current.is_day === 1);
             const isHourDay = isMidnightSun || apiIsDay;
 
@@ -387,14 +397,17 @@ export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplay
             const hasMeasurableRain = precipAmount >= TRACE_PRECIPITATION_THRESHOLD;
 
             const rawWeatherCode = hourly.weather_code[i];
-            let effectiveWeatherCode = rawWeatherCode;
+            const cloudCover = (hourly as any).cloud_cover?.[i] ?? 0;
 
-            if (
-              (!hasMeasurableRain && isPrecipitationCode(rawWeatherCode)) ||
-              (precipAmount >= TRACE_PRECIPITATION_THRESHOLD && (rawWeatherCode === 0 || rawWeatherCode === 1))
-            ) {
-              effectiveWeatherCode = 3;
-            }
+            // The ultimate solution: Lock the current active hour directly to the hero banner's 
+            // displayCode so the icon and heading are structurally guaranteed to match 100% of the time.
+            const effectiveWeatherCode = (isNow || item.index === startIdx)
+              ? displayCode
+              : getEffectiveHourlyCode(
+                  rawWeatherCode,
+                  precipAmount,
+                  cloudCover
+                );
 
             const Icon = getWeatherIcon(effectiveWeatherCode, isHourDay ? 1 : 0);
 
@@ -431,7 +444,7 @@ export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplay
             const dayName = i === 0 ? 'Today' : date.toLocaleDateString('en-GB', { weekday: 'short' });
 
             const dayCode = daily.weather_code?.[i] ?? displayCode;
-            const effectiveDayFlag = i === 0 && isSpecialSun ? 1 : i === 0 ? current.is_day : 1;
+            const effectiveDayFlag = i === 0 && isSpecialSun ? 1 : i === 0 ? isLiveDay : 1;
             const Icon = getWeatherIcon(dayCode, effectiveDayFlag);
 
             const high = daily.temperature_2m_max[i];
@@ -581,12 +594,13 @@ export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplay
             </button>
           }
         >
-          <SunriseSunsetDetailContent
-            current={current}
-            daily={daily}
-            latitude={location.latitude}
-            longitude={location.longitude}
-          />
+        <SunriseSunsetDetailContent
+          current={current}
+          daily={daily}
+          latitude={location.latitude}
+          longitude={location.longitude}
+          timezone={data.timezone}
+        />
         </DetailSheet>
 
         <DetailSheet

@@ -42,6 +42,7 @@ export interface HourlyForecast {
   precipitation_probability: number[]; // %
   precipitation: number[];
   weather_code: number[];
+  cloud_cover?: number[];
   is_day?: number[]; // 1 = day, 0 = night
   wind_speed_10m: number[]; // km/h
   wind_gusts_10m: number[]; // km/h

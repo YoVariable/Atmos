@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import {
   AreaChart,
   Area,
@@ -113,14 +114,44 @@ export function SunriseSunsetDetailContent({
   daily,
   latitude,
   longitude,
+  timezone,
 }: {
   current: CurrentWeather;
   daily: DailyForecast;
   latitude: number;
   longitude: number;
+  timezone?: string;
 }) {
   const { settings } = useSettings();
-  const now = new Date(current.time);
+
+  // Reactive wall-clock timer state matching WeatherDisplay
+  const [currentTime, setCurrentTime] = useState<Date>(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 30000); // Ticks every 30 seconds
+
+    return () => clearInterval(timer);
+  }, []);
+
+  // Compute live current time down to the exact minute in the location's timezone
+  const locationTimeZone = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: locationTimeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).formatToParts(currentTime);
+
+  const getPart = (type: string) => parts.find((p) => p.type === type)?.value || '0';
+  const localNowStr = `${getPart('year')}-${getPart('month')}-${getPart('day')}T${getPart('hour')}:${getPart('minute')}:${getPart('second')}`;
+  const now = new Date(localNowStr);
+
   const sunrise = new Date(daily.sunrise[0]);
   const sunset = new Date(daily.sunset[0]);
 

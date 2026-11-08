@@ -51,6 +51,39 @@ export function getTodayEffectiveCode(
   return displayCode;
 }
 
+/**
+ * Normalizes an hourly weather code based strictly on that specific hour's 
+ * precipitation and cloud cover metrics.
+ */
+export function getEffectiveHourlyCode(
+  rawCode: number,
+  precipAmount: number,
+  cloudCover: number
+): number {
+  let effectiveCode = rawCode;
+
+  // 1. Trace precipitation fallback: if there's measurable precip on a clear/sunny code, treat it as cloudy/drizzle
+  if (
+    precipAmount >= TRACE_PRECIPITATION_THRESHOLD &&
+    (rawCode === 0 || rawCode === 1)
+  ) {
+    return 3;
+  }
+
+  // 2. Cloud cover density mapping for clear/mainly clear codes:
+  // WMO code 0 (Clear sky) and 1 (Mainly clear) should shift to code 2 (Partly cloudy) 
+  // or code 3 (Overcast) if the actual cloud cover percentage demands it.
+  if (rawCode === 0 || rawCode === 1) {
+    if (cloudCover >= 85) {
+      return 3; // Overcast
+    } else if (cloudCover >= 20) {
+      return 2; // Partly cloudy
+    }
+  }
+
+  return effectiveCode;
+}
+
 const COMPASS_LABELS = [
   'N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE',
   'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW',
