@@ -361,7 +361,9 @@ export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplay
             const isNow = i === startIdx;
 
             // Explicitly evaluate daylight status per hour, taking into account Midnight Sun
-            const apiIsDay = hourly.is_day ? hourly.is_day[i] === 1 : current.is_day === 1;
+            const apiIsDay = isNow
+              ? current.is_day === 1
+              : (hourly.is_day ? hourly.is_day[i] === 1 : current.is_day === 1);
             const isHourDay = isMidnightSun || apiIsDay;
 
             const precipAmount = hourly.precipitation ? hourly.precipitation[i] : 0;
