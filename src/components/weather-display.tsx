@@ -176,7 +176,23 @@ export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplay
 
   const sunrise = new Date(daily.sunrise[0]);
   const sunset = new Date(daily.sunset[0]);
-  const currentCityTime = new Date(current.time).getTime();
+
+  // Compute live current time in the location's specific timezone down to the exact minute
+  const locationTimeZone = data.timezone || 'UTC';
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: locationTimeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).formatToParts(new Date());
+
+  const getPart = (type: string) => parts.find((p) => p.type === type)?.value || '0';
+  const localNowStr = `${getPart('year')}-${getPart('month')}-${getPart('day')}T${getPart('hour')}:${getPart('minute')}:${getPart('second')}`;
+  const liveCityTime = new Date(localNowStr).getTime();
 
   const todayHigh = daily.temperature_2m_max[0];
   const todayLow = daily.temperature_2m_min[0];
@@ -226,16 +242,17 @@ export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplay
   if (!isSpecialSun) {
     const windowStart = new Date(hourly.time[startIdx]).getTime();
     const windowEnd = new Date(hourly.time[endIdx - 1]).getTime();
+    
     daily.sunrise.forEach((s) => {
-      const t = new Date(s).getTime();
-      if (t >= windowStart && t <= windowEnd && t > currentCityTime) {
+      const t = new Date(s + ':00').getTime();
+      if (t >= windowStart && t <= windowEnd && t > liveCityTime) {
         timeline.push({ kind: 'sun', time: new Date(s), event: 'sunrise' });
       }
     });
 
     daily.sunset.forEach((s) => {
-      const t = new Date(s).getTime();
-      if (t >= windowStart && t <= windowEnd && t > currentCityTime) {
+      const t = new Date(s + ':00').getTime();
+      if (t >= windowStart && t <= windowEnd && t > liveCityTime) {
         timeline.push({ kind: 'sun', time: new Date(s), event: 'sunset' });
       }
     });
