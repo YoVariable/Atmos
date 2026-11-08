@@ -273,7 +273,7 @@ export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplay
   timeline.sort((a, b) => a.time.getTime() - b.time.getTime());
 
   const displayName =
-    location.name === 'Antarctica' && location.country === 'Antarctica'
+    location.name === 'Antarctica' && (!location.country || location.country === 'AQ')
       ? 'Antarctica (general)'
       : location.name;
 

@@ -3,6 +3,14 @@ import { useCitySearch } from '@/lib/use-weather';
 import { MapPin, Search, Loader2, Navigation } from 'lucide-react';
 import type { SavedLocation } from '@/lib/use-locations';
 
+// Helper function to handle special location name overrides
+export function getFormattedLocationName(location: { name: string; country?: string }): string {
+  if (location.name === 'Antarctica' && (!location.country || location.country === 'AQ' || location.country === 'Antarctica')) {
+    return 'Antarctica (general)';
+  }
+  return location.name;
+}
+
 interface LocationSearchProps {
   onSelect: (location: SavedLocation) => void;
   onUseCurrentLocation?: () => void;
@@ -18,6 +26,15 @@ export function LocationSearch({ onSelect, onUseCurrentLocation, isLocatingCurre
     const timer = setTimeout(() => setDebouncedQuery(query), 300);
     return () => clearTimeout(timer);
   }, [query]);
+
+  // Ensure that when a location is selected, the formatted name is passed upstream
+  const handleSelect = (result: SavedLocation) => {
+    const formattedName = getFormattedLocationName(result);
+    onSelect({
+      ...result,
+      name: formattedName,
+    });
+  };
 
   return (
     <div className="w-full space-y-4">
@@ -53,23 +70,26 @@ export function LocationSearch({ onSelect, onUseCurrentLocation, isLocatingCurre
       {results && results.length > 0 && (
         <div className="bg-white dark:bg-zinc-900 rounded-2xl overflow-hidden shadow-sm ring-1 ring-black/5 dark:ring-white/10">
           <div className="max-h-[250px] overflow-y-auto scrollbar-hide">
-            {results.map((result) => (
-              <button
-                key={result.id}
-                onClick={() => onSelect(result)}
-                className="w-full flex items-center gap-4 px-4 py-3 text-left hover:bg-black/5 dark:hover:bg-white/5 transition-colors border-b border-black/5 dark:border-white/10 last:border-0"
-              >
-                <div className="w-8 h-8 rounded-full bg-black/5 dark:bg-zinc-800 flex items-center justify-center shrink-0">
-                  <MapPin className="w-4 h-4 text-foreground/60" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="font-semibold text-[15px] truncate">{result.name}</div>
-                  <div className="text-sm font-medium text-muted-foreground truncate">
-                    {result.admin1 ? `${result.admin1}, ` : ''}{result.country}
+            {results.map((result) => {
+              const displayName = getFormattedLocationName(result);
+              return (
+                <button
+                  key={result.id}
+                  onClick={() => handleSelect(result)}
+                  className="w-full flex items-center gap-4 px-4 py-3 text-left hover:bg-black/5 dark:hover:bg-white/5 transition-colors border-b border-black/5 dark:border-white/10 last:border-0"
+                >
+                  <div className="w-8 h-8 rounded-full bg-black/5 dark:bg-zinc-800 flex items-center justify-center shrink-0">
+                    <MapPin className="w-4 h-4 text-foreground/60" />
                   </div>
-                </div>
-              </button>
-            ))}
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold text-[15px] truncate">{displayName}</div>
+                    <div className="text-sm font-medium text-muted-foreground truncate">
+                      {result.admin1 ? `${result.admin1}, ` : ''}{result.country}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
