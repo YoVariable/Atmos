@@ -71,6 +71,16 @@ const CARD_TRIGGER_CLASS =
   'glass-panel p-4 sm:p-5 flex flex-col justify-between text-left w-full active:scale-[0.97] transition-transform';
 
 export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplayProps) {
+  
+  // Force a minor state update every minute so startIdx re-evaluates live
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTick((t) => t + 1);
+    }, 60000); // Check every minute
+    return () => clearInterval(timer);
+  }, []);
+
   const { settings } = useSettings();
 
   const isCurrentLocation = isCurrent ?? location?.isCurrent ?? false;
@@ -78,8 +88,7 @@ export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplay
   const [showStickyHeader, setShowStickyHeader] = useState(false);
   const observerRef = useRef<IntersectionObserver | null>(null);
 
-  // Active wall-clock timer state to force reactive UI updates
-  const [currentTime, setCurrentTime] = useState<Date>(new Date());
+  const currentTime = new Date();
 
   const [debouncedIsActive, setDebouncedIsActive] = useState(isActive);
 
@@ -133,7 +142,7 @@ export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplay
     timeZone: airQuality?.timezone,
     hour: 'numeric',
     hourCycle: 'h23',
-  }).format(currentTime);
+  }).format(new Date()); // <-- Change this from currentTime to new Date()
 
   const nowIndex =
     airQuality?.hourly?.time?.findIndex(

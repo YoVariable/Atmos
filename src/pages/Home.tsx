@@ -7,6 +7,8 @@ import { LocationSearch } from '@/components/location-search';
 import { Compass, Navigation } from 'lucide-react';
 import { CompassModal } from '@/components/compass-modal';
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { getForecast, getAirQuality } from '@/lib/weather-api';
 
 export default function Home() {
   const { locations, activeLocationId, setActiveLocationId, isLoaded, addLocation, refreshCurrentLocation, isLocatingCurrent } =
@@ -64,6 +66,32 @@ export default function Home() {
       setActiveLocationId(locations[index].id);
     }
   }, [activeIndex, locations, setActiveLocationId]);
+
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!locations || locations.length <= 1) return;
+
+    const nextIndex = (activeIndex + 1) % locations.length;
+    const nextLoc = locations[nextIndex];
+    if (!nextLoc || nextLoc.latitude === undefined || nextLoc.longitude === undefined) return;
+
+    const timer = setTimeout(() => {
+      queryClient.prefetchQuery({
+        queryKey: ['weather', nextLoc.latitude, nextLoc.longitude],
+        queryFn: () => getForecast(nextLoc.latitude, nextLoc.longitude),
+        staleTime: 10 * 60 * 1000,
+      });
+
+      queryClient.prefetchQuery({
+        queryKey: ['airQuality', nextLoc.latitude, nextLoc.longitude],
+        queryFn: () => getAirQuality(nextLoc.latitude, nextLoc.longitude),
+        staleTime: 15 * 60 * 1000,
+      });
+    }, 200);
+
+    return () => clearTimeout(timer);
+  }, [activeIndex, locations, queryClient]);
 
   const currentLocation =
     locations.find((loc) => loc.id === activeLocationId) ||

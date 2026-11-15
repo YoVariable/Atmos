@@ -10,10 +10,11 @@ import { LocationsProvider } from '@/lib/use-locations';
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 10 * 60 * 1000,      // 10 minutes fresh
-      refetchOnWindowFocus: false,    // Prevents background refetching on window focus
-      retry: 1,                       // Limits retries to 1 instead of 3
-      retryDelay: 5000,               // Waits 5 seconds before retrying
+      staleTime: 10 * 60 * 1000,         // 10 minutes fresh
+      gcTime: 24 * 60 * 60 * 1000,       // Keep cached data for 24 hours
+      refetchOnWindowFocus: false,       // Prevents background refetching on window focus
+      retry: 1,                          // Limits retries to 1 instead of 3
+      retryDelay: 5000,                  // Waits 5 seconds before retrying
     },
   },
 });
