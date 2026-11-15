@@ -158,12 +158,18 @@ export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplay
   const localNowStr = `${getPart('year')}-${getPart('month')}-${getPart('day')}T${getPart('hour')}:${getPart('minute')}:${getPart('second')}`;
   const liveCityTime = new Date(localNowStr).getTime();
 
-  // Compute reactive startIdx based on local city wall clock
-  const localNowHourStr = localNowStr.slice(0, 13);
-  if (hourly) {
-    const idx = hourly.time.findIndex((t) => t.startsWith(localNowHourStr));
-    if (idx !== -1) startIdx = idx;
-  }
+  if (hourly && hourly.time) {
+      const currentHourNum = parseInt(getPart('hour'), 10);
+      const currentDateStr = `${getPart('year')}-${getPart('month')}-${getPart('day')}`;
+      
+      const idx = hourly.time.findIndex((t) => {
+        const [datePart, timePart] = t.split('T');
+        const hourPart = parseInt(timePart?.split(':')[0] || '0', 10);
+        return datePart === currentDateStr && hourPart === currentHourNum;
+      });
+
+      if (idx !== -1) startIdx = idx;
+    }
 
   const sunrise = daily ? new Date(daily.sunrise[0]) : new Date();
   const sunset = daily ? new Date(daily.sunset[0]) : new Date();
