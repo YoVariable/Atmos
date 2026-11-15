@@ -7,7 +7,16 @@ import { Route, Switch, Router as WouterRouter } from 'wouter';
 import { SettingsProvider, useSettings } from '@/lib/use-settings';
 import { LocationsProvider } from '@/lib/use-locations';
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 10 * 60 * 1000,      // 10 minutes fresh
+      refetchOnWindowFocus: false,    // Prevents background refetching on window focus
+      retry: 1,                       // Limits retries to 1 instead of 3
+      retryDelay: 5000,               // Waits 5 seconds before retrying
+    },
+  },
+});
 
 // A lightweight helper to synchronize theme state with the root HTML element
 function ThemeEffect() {

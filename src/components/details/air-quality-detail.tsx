@@ -32,21 +32,30 @@ export function AirQualityDetailContent({
         <div className="text-6xl font-medium tracking-tight">{Math.round(airQuality.us_aqi)}</div>
         <div className="text-lg font-semibold">{band.label}</div>
         <p className="text-sm text-foreground/70 leading-relaxed">{band.description}</p>
-        <div className="relative h-2 rounded-full bg-black/5 overflow-hidden mt-2">
-          <div
-            className="absolute inset-0"
-            style={{
-              background:
-                'linear-gradient(to right, rgb(34 197 94), rgb(234 179 8), rgb(249 115 22), rgb(239 68 68), rgb(168 85 247), rgb(136 19 55))',
-            }}
-          />
-          <div
-            className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-white shadow-sm ring-1 ring-black/20"
-            style={{ left: `${Math.max(0, Math.min(97, position * 100))}%` }}
-          />
+        <div className="space-y-1.5">
+          <div className="relative h-2 rounded-full bg-black/5 overflow-hidden mt-2">
+            <div
+              className="absolute inset-0"
+              style={{
+                background:
+                  'linear-gradient(to right, rgb(34 197 94), rgb(234 179 8), rgb(249 115 22), rgb(239 68 68), rgb(168 85 247), rgb(136 19 55))',
+              }}
+            />
+            <div
+              className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-white shadow-sm ring-1 ring-black/20"
+              style={{ left: `${Math.max(0, Math.min(97, position * 100))}%` }}
+            />
+          </div>
+
+          <div className="grid grid-cols-3 items-center text-xs font-medium text-foreground/60">
+            <span className="text-left">0</span>
+            <span className="text-center whitespace-nowrap">
+              U.S. AQI scale
+            </span>
+            <span className="text-right">500</span>
+          </div>
         </div>
       </div>
-
       <div className="grid grid-cols-2 gap-3">
         {POLLUTANTS.map(({ key, label, gasKey }) => {
           const rawValue = airQuality[key];

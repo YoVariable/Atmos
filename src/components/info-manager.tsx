@@ -120,7 +120,7 @@ export function InfoManager() {
         <div className="flex-1 overflow-y-auto space-y-6 text-sm text-muted-foreground pr-1.5 scrollbar-hide">
           {/* Atmos App Overview */}
           <div>
-            <h4 className="font-semibold text-foreground mb-1">Version 1.5.1</h4>
+            <h4 className="font-semibold text-foreground mb-1">Version 1.6.0</h4>
             <p className="leading-relaxed">
               Atmos provides precision weather metrics for the modern enthusiast. Designed for
               speed, clarity, and a unique perspective on local conditions.
@@ -214,7 +214,7 @@ export function InfoManager() {
 
               <div className="text-xs text-foreground/80 space-y-1.5 pt-1">
                 <p className="leading-relaxed">
-                  <strong className="text-foreground font-medium">Quick mental rule of thumb:</strong> A <span className="font-mono text-sky-600 dark:text-sky-400 font-medium">1°Ꞓ</span> shift is roughly <span className="font-mono text-sky-600 dark:text-sky-400 font-medium">0.5°C</span> or <span className="font-mono text-sky-600 dark:text-sky-400 font-medium">1°F</span> everywhere on the scale.
+                  <strong className="text-foreground font-medium">Quick mental rule of thumb:</strong> A <span className="font-mono text-sky-600 dark:text-sky-400 font-medium">3°Ꞓ</span> shift is roughly a <span className="font-mono text-sky-600 dark:text-sky-400 font-medium">2°C</span> or <span className="font-mono text-sky-600 dark:text-sky-400 font-medium">4°F</span> shift everywhere on the scale.
                 </p>
               </div>
             </div>

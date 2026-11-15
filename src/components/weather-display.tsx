@@ -81,13 +81,19 @@ export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplay
   // Active wall-clock timer state to force reactive UI updates
   const [currentTime, setCurrentTime] = useState<Date>(new Date());
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 30000); // Ticks every 30 seconds to catch precise solar transitions
+  const [debouncedIsActive, setDebouncedIsActive] = useState(isActive);
 
-    return () => clearInterval(timer);
-  }, []);
+  useEffect(() => {
+      if (!isActive) {
+        setDebouncedIsActive(false);
+        return;
+      }
+      const timer = setTimeout(() => {
+        setDebouncedIsActive(true);
+      }, 300); // Wait 300ms of resting on the slide before fetching
+
+      return () => clearTimeout(timer);
+    }, [isActive]);
 
   const heroCallbackRef = useCallback((node: HTMLElement | null) => {
     if (observerRef.current) {
@@ -111,8 +117,8 @@ export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplay
     }
   }, []);
 
-  const { data, isLoading, error } = useWeather(location.latitude, location.longitude);
-  const { data: airQuality } = useAirQuality(location.latitude, location.longitude);
+  const { data, isLoading, error } = useWeather(location.latitude, location.longitude, debouncedIsActive);
+  const { data: airQuality } = useAirQuality(location.latitude, location.longitude, debouncedIsActive);
 
   const current = data?.current;
   const hourly = data?.hourly;
@@ -189,17 +195,26 @@ export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplay
     );
   }
 
-  if (error || !data || !current || !hourly || !daily) {
-    return (
-      <div className="flex-1 min-h-[80vh] flex flex-col items-center justify-center p-8 space-y-4 text-center">
-        <AlertCircle className="w-8 h-8 text-destructive" />
-        <div>
-          <div className="font-medium text-destructive">Failed to read instruments</div>
-          <div className="text-sm text-muted-foreground mt-1">Please try again later.</div>
+  if (isLoading || (!data && !error)) {
+      return (
+        <div className="flex-1 min-h-[80vh] flex flex-col items-center justify-center p-8 space-y-4">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <div className="text-sm text-muted-foreground font-medium animate-pulse">Reading instruments...</div>
         </div>
-      </div>
-    );
-  }
+      );
+    }
+
+    if (error || !data || !current || !hourly || !daily) {
+      return (
+        <div className="flex-1 min-h-[80vh] flex flex-col items-center justify-center p-8 space-y-4 text-center">
+          <AlertCircle className="w-8 h-8 text-destructive" />
+          <div>
+            <div className="font-medium text-destructive">Failed to read instruments</div>
+            <div className="text-sm text-muted-foreground mt-1">Please try again later.</div>
+          </div>
+        </div>
+      );
+    }
 
   const globalMin = Math.min(...daily.temperature_2m_min);
   const globalMax = Math.max(...daily.temperature_2m_max);
@@ -532,17 +547,23 @@ export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplay
                   const position = getAqiPosition(airQuality.us_aqi);
                   return (
                     <div className="mt-auto space-y-5 pt-2 w-full">
-                      <div className="space-y-1">
-                        <div className="text-3xl font-medium tracking-tight">
-                          {Math.round(airQuality.us_aqi)}
-                        </div>
-                        <div
+                    <div className="space-y-1">
+                      <div className="text-3xl font-medium tracking-tight">
+                        {Math.round(airQuality.us_aqi)}
+                      </div>
+
+                      <div className="flex items-baseline gap-1.5">
+                        <span
                           className="text-[15px] font-semibold leading-tight tracking-tight text-foreground"
                           title={band.label}
                         >
                           {band.label}
-                        </div>
+                        </span>
+                        <span className="text-[14px] font-medium tracking-wide text-foreground/50 whitespace-nowrap">
+                          · U.S. AQI
+                        </span>
                       </div>
+                    </div>
                       <div className="relative h-1.5 rounded-full bg-black/5 overflow-hidden w-full">
                         <div
                           className="absolute inset-0"
@@ -553,7 +574,7 @@ export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplay
                         />
                         <div
                           className="absolute top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-white shadow-sm ring-1 ring-black/20"
-                          style={{ left: `${Math.max(0, Math.min(98, position))}%` }}
+                          style={{ left: `${Math.max(0, Math.min(98, position * 100))}%` }}
                         />
                       </div>
                     </div>

@@ -1,5 +1,4 @@
 import { Area, AreaChart, ResponsiveContainer, YAxis, Tooltip, CartesianGrid, XAxis, ReferenceLine } from 'recharts';
-import { formatHourLabel, formatTime } from '../lib/units';
 import { useSettings } from '@/lib/use-settings';
 
 interface UVIndexDetailContentProps {
@@ -43,36 +42,149 @@ function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
   );
 }
 
+type UVPoint = { time: number; value: number | null };
+type UVWindow = { startHour: number; endHour: number };
+
+// Keep separate elevated periods separate, and retain a single qualifying hour.
+function getUvWindows(dayData: UVPoint[]): UVWindow[] {
+  const windows: UVWindow[] = [];
+  let lastElevatedHour: number | null = null;
+
+  for (const { time, value } of dayData) {
+    if (value === null || value < 3) {
+      lastElevatedHour = null;
+      continue;
+    }
+
+    const lastWindow = windows[windows.length - 1];
+    if (lastWindow && lastElevatedHour !== null && time === lastElevatedHour + 1) {
+      lastWindow.endHour = time;
+    } else {
+      windows.push({ startHour: time, endHour: time });
+    }
+    lastElevatedHour = time;
+  }
+
+  return windows;
+}
+
+function uvHourLabel(hour: number, timeFormat: string): string {
+  if (timeFormat === '24h') return `${String(hour).padStart(2, '0')}:00`;
+  return new Date(2026, 0, 1, hour).toLocaleTimeString('en-US', {
+    hour: 'numeric', minute: '2-digit', hour12: true,
+  });
+}
+
+function describeUvWindows(windows: UVWindow[], timeFormat: string): string {
+  const periods = windows.map(({ startHour, endHour }) =>
+    startHour === endHour
+      ? `at ${uvHourLabel(startHour, timeFormat)}`
+      : `from ${uvHourLabel(startHour, timeFormat)} through ${uvHourLabel(endHour, timeFormat)}`
+  );
+
+  if (periods.length <= 1) return periods[0] ?? '';
+  if (periods.length === 2) return `${periods[0]} and ${periods[1]}`;
+  return `${periods.slice(0, -1).join(', ')}, and ${periods[periods.length - 1]}`;
+}
+
+// Generate one complete message, so the current-condition advice and forecast
+// window don't repeat each other or misrepresent forecast data as observations.
+function getUvDescription(
+  dayData: UVPoint[], currentHour: number, isCurrentDay: boolean, timeFormat: string
+): string {
+  const availableCount = dayData.filter(({ value }) => value !== null).length;
+  if (availableCount === 0) return 'UV forecast data are unavailable for this day.';
+
+  const hasMissingHours = availableCount < dayData.length;
+  const missingNote = hasMissingHours ? ' Some hourly UV readings are unavailable.' : '';
+  const windows = getUvWindows(dayData);
+  const currentUvValue = isCurrentDay
+    ? (dayData.find(({ time }) => time === currentHour)?.value ?? null)
+    : null;
+
+  if (windows.length === 0) {
+    if (hasMissingHours) {
+      const prefix = isCurrentDay && currentUvValue === null
+        ? 'Current UV data are unavailable. '
+        : '';
+      return `${prefix}Available hourly UV forecasts show values below 3.${missingNote}`;
+    }
+    if (!isCurrentDay) return 'UV levels are forecast to remain low (below 3) throughout the day.';
+    if (currentUvValue === null) {
+      return 'Current UV data are unavailable. The hourly forecast otherwise shows low UV (below 3) throughout the day.';
+    }
+    if (currentUvValue === 0) {
+      return 'UV exposure is currently negligible, with levels forecast to remain below 3 throughout the day.';
+    }
+    return 'UV levels are currently low and forecast to remain below 3 throughout the day.';
+  }
+
+  const fullWindowText = describeUvWindows(windows, timeFormat);
+  if (!isCurrentDay) {
+    return `UV Index values of 3 or higher are forecast ${fullWindowText}.${missingNote}`;
+  }
+
+  const currentAdvice = currentUvValue === null
+    ? 'Current UV data are unavailable. '
+    : currentUvValue >= 3
+      ? 'Sun protection is recommended. '
+      : currentUvValue === 0
+        ? 'UV exposure is currently negligible. '
+        : 'UV levels are currently low. ';
+
+  const lastWindow = windows[windows.length - 1];
+  if (currentHour > lastWindow.endHour) {
+    return `${currentAdvice}Earlier today, UV Index values of 3 or higher were forecast ${fullWindowText}.${missingNote}`;
+  }
+
+  const activeIndex = windows.findIndex(
+    ({ startHour, endHour }) => currentHour >= startHour && currentHour <= endHour
+  );
+  if (activeIndex !== -1 && currentUvValue !== null && currentUvValue >= 3) {
+    const activeWindow = windows[activeIndex];
+    const activeText = activeWindow.startHour === activeWindow.endHour
+      ? `A UV Index of 3 or higher is forecast at ${uvHourLabel(activeWindow.startHour, timeFormat)}.`
+      : `Elevated UV is forecast through ${uvHourLabel(activeWindow.endHour, timeFormat)}.`;
+    const laterWindows = windows.slice(activeIndex + 1);
+    const laterText = laterWindows.length > 0
+      ? ` Additional elevated UV is forecast ${describeUvWindows(laterWindows, timeFormat)}.`
+      : '';
+    return `${currentAdvice}${activeText}${laterText}${missingNote}`;
+  }
+
+  // Before the first period, or in a low-UV gap between elevated periods.
+  const upcomingWindows = windows.filter(({ startHour }) => startHour > currentHour);
+  if (upcomingWindows.length > 0) {
+    return `${currentAdvice}UV Index values of 3 or higher are forecast ${describeUvWindows(upcomingWindows, timeFormat)}.${missingNote}`;
+  }
+
+  return `${currentAdvice}The hourly forecast shows UV Index values of 3 or higher ${fullWindowText}.${missingNote}`;
+}
+
 export function UVIndexDetailContent({ hourly, initialDayIndex, timezone }: UVIndexDetailContentProps) {
   const { settings } = useSettings();
   const { timeFormat } = settings;
+  const dayIndex = initialDayIndex ?? 0;
+  const isCurrentDay = dayIndex === 0;
+  const startIndex = dayIndex * 24;
 
-  const getUvWindow = (hourlyData: { uv_index: number[], time: string[] }, startIdx: number) => {
-    const dayUvIndices = hourlyData.uv_index.slice(startIdx, startIdx + 24);
-    const dayTimes = hourlyData.time.slice(startIdx, startIdx + 24);
-    const moderateOrHigherIndices = dayUvIndices
-      .map((val: number, idx: number) => (val >= 3 ? idx : -1))
-      .filter((idx: number) => idx !== -1);
-
-    if (moderateOrHigherIndices.length <= 1) return null;
-    const startHourStr = dayTimes[moderateOrHigherIndices[0]].split('T')[1].split(':')[0];
-    const endHourStr = dayTimes[moderateOrHigherIndices[moderateOrHigherIndices.length - 1]].split('T')[1].split(':')[0];
-    return { startHour: parseInt(startHourStr), endHour: parseInt(endHourStr) };
-  };
-
-  const startIndex = (initialDayIndex || 0) * 24;
-
-  const dayData = Array.from({ length: 24 }).map((_, i) => {
+  const dayData: UVPoint[] = Array.from({ length: 24 }).map((_, i) => {
     const idx = startIndex + i;
     const timeStr = hourly?.time?.[idx];
-    
-    let hour = i; 
+
+    let hour = i;
     if (timeStr) {
-      const parts = timeStr.split('T')[1].split(':');
-      hour = parseInt(parts[0]);
+      const parsedHour = Number(timeStr.split('T')[1]?.split(':')[0]);
+      if (Number.isInteger(parsedHour) && parsedHour >= 0 && parsedHour <= 23) {
+        hour = parsedHour;
+      }
     }
-    
-    const value = typeof hourly?.uv_index?.[idx] === 'number' ? hourly.uv_index[idx] : 0;
+
+    const rawValue = hourly?.uv_index?.[idx];
+    // Missing or invalid values must not be treated as genuine zero UV readings.
+    const value = typeof rawValue === 'number' && Number.isFinite(rawValue) && rawValue >= 0
+      ? rawValue
+      : null;
     return { time: hour, value };
   });
 
@@ -82,48 +194,30 @@ export function UVIndexDetailContent({ hourly, initialDayIndex, timezone }: UVIn
     hourCycle: 'h23',
   });
   const currentHour = parseInt(formatter.format(new Date()), 10);
-  const nowIndex = dayData.findIndex((item) => item.time === currentHour);
+  const nowIndex = isCurrentDay
+    ? dayData.findIndex((item) => item.time === currentHour)
+    : -1;
 
-  const currentUvValue = nowIndex !== -1 ? dayData[nowIndex].value : 0;
-  const advice = getUvAdvice(currentUvValue);
-  const uvWindow = hourly ? getUvWindow(hourly, startIndex) : null;
-
-  let windowText = "";
-
-  if (uvWindow) {
-    const viewDate = new Date();
-    viewDate.setDate(viewDate.getDate() + (initialDayIndex || 0));
-
-    const startDate = new Date(viewDate);
-    startDate.setHours(uvWindow.startHour, 0, 0, 0);
-    const endDate = new Date(viewDate);
-    endDate.setHours(uvWindow.endHour, 0, 0, 0);
-
-    const timeOptions: Intl.DateTimeFormatOptions = {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: timeFormat === '12h',
-    };
-
-    const startLabel = new Intl.DateTimeFormat('en-US', timeOptions).format(startDate);
-    const endLabel = new Intl.DateTimeFormat('en-US', timeOptions).format(endDate);
-
-    if (uvWindow.startHour === uvWindow.endHour) {
-      windowText = "Moderate (3) levels expected briefly around " + startLabel + ".";
-    } else if (currentHour < uvWindow.startHour) {
-      windowText = `Levels of Moderate (3) or higher are reached from ${startLabel} to ${endLabel}.`;
-    } else if (currentHour >= uvWindow.startHour && currentHour <= uvWindow.endHour) {
-      windowText = `Moderate (3) or higher levels currently. They last until ${endLabel}.`;
-    } else {
-      windowText = `Low for the rest of the day. Levels of Moderate (3) or higher were reached from ${startLabel} to ${endLabel}.`;
-    }
-
-  } else {
-    windowText = "Low levels throughout the day.";
-  }
+  const uvDescription = getUvDescription(dayData, currentHour, isCurrentDay, timeFormat);
 
   // Calculate maximum UV value for the day to dynamically scale gradient stops
-  const maxUv = Math.max(...dayData.map(d => d.value), 1);
+  const maxUv = Math.max(...dayData.map(d => d.value ?? 0), 1);
+
+
+  const yAxisStep =
+    maxUv <= 12 ? 4 :
+    maxUv <= 20 ? 5 :
+    maxUv <= 50 ? 10 : 20;
+
+  const yAxisMax = maxUv <= 12
+    ? 12
+    : Math.ceil((maxUv + 1) / yAxisStep) * yAxisStep;
+
+  const yAxisTicks = Array.from(
+    { length: yAxisMax / yAxisStep + 1 },
+    (_, i) => i * yAxisStep
+  );
+
 
   // Helper function to convert absolute UV values into percentages relative to today's peak
   const uvToOffset = (uv: number) => {
@@ -187,7 +281,16 @@ export function UVIndexDetailContent({ hourly, initialDayIndex, timezone }: UVIn
                 );
               }}
             />
-            <YAxis domain={[0, 12]} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} tickCount={4} />
+            <YAxis
+              domain={[0, yAxisMax]}
+              ticks={yAxisTicks}
+              tick={{
+                fontSize: 10,
+                fill: 'hsl(var(--muted-foreground))'
+              }}
+              axisLine={false}
+              tickLine={false}
+            />
             <Area 
               type="monotone" 
               dataKey="value" 
@@ -195,24 +298,25 @@ export function UVIndexDetailContent({ hourly, initialDayIndex, timezone }: UVIn
               fill="url(#uvGradient)" 
               strokeWidth={2} 
             />
-            <ReferenceLine 
-              x={nowIndex} 
-              xAxisId={0} 
-              stroke="hsl(var(--foreground))" 
-              strokeDasharray="3 3" 
-              label={{ value: 'Now', position: 'top', fontSize: 14, fill: 'hsl(var(--foreground))' }} 
-            />
+            {isCurrentDay && nowIndex !== -1 && (
+              <ReferenceLine
+                x={currentHour}
+                xAxisId={0}
+                stroke="hsl(var(--foreground))"
+                strokeDasharray="3 3"
+                label={{ value: 'Now', position: 'top', fontSize: 14, fill: 'hsl(var(--foreground))' }}
+              />
+            )}
             <Tooltip content={<CustomTooltip />} />
           </AreaChart>
         </ResponsiveContainer>
       </div>
 
       <div className="p-4 rounded-xl bg-black/[0.03] border border-black/5 text-sm text-foreground/80 dark:bg-white/5 dark:border-white/10 mt-4">
-        <h3 className="font-semibold mb-2 text-foreground">About UV Index</h3>
-        <p className="mb-4">
-          {currentUvValue >= 3 ? "Sun protection recommended." : "No sun protection needed."}{" "}
-          {windowText}
-        </p>
+        <h3 className="font-semibold mb-2 text-foreground">
+          About UV Index
+        </h3>
+        <p className="mb-4">{uvDescription}</p>
 
         <div className="flex w-full">
           <div className="flex-1 flex flex-col gap-2">
@@ -229,12 +333,4 @@ export function UVIndexDetailContent({ hourly, initialDayIndex, timezone }: UVIn
       </div>
     </div>
   );
-}
-
-function getUvAdvice(currentUvValue: number) {
-  if (currentUvValue <= 2) return 'not required';
-  if (currentUvValue <= 5) return 'recommended';
-  if (currentUvValue <= 7) return 'required — protection advised (sunscreen, hat, shade)';
-  if (currentUvValue <= 10) return 'required — extra protection (sunscreen, hat, sunglasses, seek shade)';
-  return 'required — extreme risk (avoid sun, cover up)';
 }
