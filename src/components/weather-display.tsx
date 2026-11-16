@@ -563,28 +563,31 @@ export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplay
                   return (
                     <div className="mt-auto space-y-5 pt-2 w-full">
                     <div className="space-y-1">
-                      <div className="text-3xl font-medium tracking-tight">
-                        {Math.round(airQuality.us_aqi)}
-                      </div>
-
-                      <div className="flex items-baseline gap-1.5">
-                        <span
+                        <div className="text-3xl font-medium tracking-tight">
+                          {Math.round(airQuality.us_aqi)}
+                        </div>
+                        <div
                           className="text-[15px] font-semibold leading-tight tracking-tight text-foreground"
                           title={band.label}
                         >
                           {band.label}
-                        </span>
-                        <span className="text-[14px] font-medium tracking-wide text-foreground/50 whitespace-nowrap">
-                          · U.S. AQI
-                        </span>
-                      </div>
+                        </div>
                     </div>
                       <div className="relative h-1.5 rounded-full bg-black/5 overflow-hidden w-full">
                         <div
                           className="absolute inset-0"
                           style={{
-                            background:
-                              'linear-gradient(to right, rgb(34 197 94), rgb(234 179 8), rgb(249 115 22), rgb(239 68 68), rgb(168 85 247), rgb(136 19 55))',
+                          background: `linear-gradient(to right,
+                          #22c55e 0%,
+                          #a3d94a 6%,
+                          #eab308 12%,
+                          #f97316 22%,
+                          #ef4444 32%,
+                          #e43b83 40%,
+                          #a855f7 49%,
+                          #9d174d 68%,
+                          #881337 100%
+                        )`,
                           }}
                         />
                         <div
@@ -707,16 +710,14 @@ export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplay
                 <Sun className="w-4 h-4" />
                 <span>UV Index</span>
               </div>
-
               <div className="mt-auto pt-4">
                 <div className="text-3xl font-medium tracking-tight font-mono">
                   {Math.round(currentUvValue)}
                 </div>
                 <div className="text-sm text-foreground/70 font-medium mt-1">
-                  {getUvCategory(currentUvValue)}
+                  {getUvCategory(Math.round(currentUvValue))}
                 </div>
               </div>
-
               {/* Track Container */}
               <div className="relative w-full h-1.5 rounded-full mt-4 bg-gradient-to-r from-green-500 via-yellow-400 via-orange-500 via-red-500 to-purple-600 opacity-90">
                 <div

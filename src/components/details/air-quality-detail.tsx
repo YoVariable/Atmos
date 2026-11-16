@@ -37,8 +37,17 @@ export function AirQualityDetailContent({
             <div
               className="absolute inset-0"
               style={{
-                background:
-                  'linear-gradient(to right, rgb(34 197 94), rgb(234 179 8), rgb(249 115 22), rgb(239 68 68), rgb(168 85 247), rgb(136 19 55))',
+                background: `linear-gradient(to right,
+                 #22c55e 0%,
+                 #a3d94a 6%,
+                 #eab308 12%,
+                 #f97316 22%,
+                 #ef4444 32%,
+                 #e43b83 40%,
+                 #a855f7 49%,
+                 #9d174d 68%,
+                 #881337 100%
+               )`,
               }}
             />
             <div
