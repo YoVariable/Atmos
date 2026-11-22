@@ -38,16 +38,19 @@ export function AirQualityDetailContent({
               className="absolute inset-0"
               style={{
                 background: `linear-gradient(to right,
-                 #22c55e 0%,
-                 #a3d94a 6%,
-                 #eab308 12%,
-                 #f97316 22%,
-                 #ef4444 32%,
-                 #e43b83 40%,
-                 #a855f7 49%,
-                 #9d174d 68%,
-                 #881337 100%
-               )`,
+                  #22c55e 0%,
+                  #22c55e 9%,
+                  #eab308 11%,
+                  #eab308 19%,
+                  #ff8a00 21%,
+                  #ff8a00 29%,
+                  #dc2626 31%,
+                  #dc2626 39%,
+                  #a855f7 41%,
+                  #a855f7 59%,
+                  #9d174d 61%,
+                  #881337 100%
+                )`,
               }}
             />
             <div

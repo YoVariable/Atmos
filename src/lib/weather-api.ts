@@ -92,6 +92,46 @@ export interface AirQuality {
 
 const CACHE_TTL = 15 * 60 * 1000; // 15-minute cache
 
+async function fetchJsonWithTimeout<T>(
+  url: string,
+  signal?: AbortSignal,
+  timeoutMs = 10_000
+): Promise<{ status: number; body?: T }> {
+  const controller = new AbortController();
+
+  const onAbort = () => controller.abort();
+
+  if (signal?.aborted) {
+    onAbort();
+  } else {
+    signal?.addEventListener("abort", onAbort, { once: true });
+  }
+
+  const timer = setTimeout(() => {
+    controller.abort();
+  }, timeoutMs);
+
+  try {
+    const response = await fetch(url, {
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      return { status: response.status };
+    }
+
+    const body = (await response.json()) as T;
+
+    return {
+      status: response.status,
+      body,
+    };
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener("abort", onAbort);
+  }
+}
+
 // Precipitation Constants
 export const TRACE_PRECIPITATION_THRESHOLD = 0.2; // mm
 export const DAILY_PRECIP_VOLUME_THRESHOLD = 5.0; // mm daily total override
@@ -246,19 +286,10 @@ function applyCanadaPermanentOffset(data: ForecastResponse, latitude: number, lo
 export async function getForecast(
   latitude: number,
   longitude: number,
+  signal?: AbortSignal,
 ): Promise<ForecastResponse> {
-  const cacheKey = `atmos_forecast_${latitude.toFixed(3)}_${longitude.toFixed(3)}`;
 
-  // 1. Try to return cached data if fresh
-  const cached = localStorage.getItem(cacheKey);
-  if (cached) {
-    const { timestamp, data } = JSON.parse(cached);
-    if (Date.now() - timestamp < CACHE_TTL) {
-      return data;
-    }
-  }
-
-  // 2. Build core URL logic
+  // 1. Build core URL logic
   const url = new URL('https://api.open-meteo.com/v1/forecast');
   url.searchParams.set('latitude', String(latitude));
   url.searchParams.set('longitude', String(longitude));
@@ -296,18 +327,20 @@ export async function getForecast(
   url.searchParams.set('temperature_unit', 'celsius');
   url.searchParams.set('forecast_days', '10');
   url.searchParams.set('past_hours', '6');
+  
+  // 2. Fetch fresh data with timeout and cancellation
+  const response = await fetchJsonWithTimeout<ForecastResponse>(
+    url.toString(),
+    signal
+  );
 
-  // 3. Execute fetch with 429 intercept
-  const res = await fetch(url.toString());
-
-  if (res.status === 429) {
-    const stale = localStorage.getItem(cacheKey);
-    if (stale) return JSON.parse(stale).data;
+  if (!response.body) {
+    throw new Error(
+      `Failed to fetch forecast (HTTP ${response.status})`
+    );
   }
 
-  if (!res.ok) throw new Error('Failed to fetch forecast');
-
-  let data: ForecastResponse = await res.json();
+  let data: ForecastResponse = response.body;
 
   // --- APPLY CANADA PERMANENT DST OFFSET OVERRIDE ---
   data = applyCanadaPermanentOffset(data, latitude, longitude);
@@ -333,14 +366,18 @@ export async function getForecast(
     );
   }
 
-  // 4. Save transformed data to cache before returning
-  localStorage.setItem(cacheKey, JSON.stringify({ timestamp: Date.now(), data }));
-
+  // 3. Return transformed forecast data
   return data;
+
 }
 
 /** Current air quality for a location. Open-Meteo Air Quality API. */
-export async function getAirQuality(latitude: number, longitude: number): Promise<AirQuality> {
+export async function getAirQuality(
+  latitude: number,
+  longitude: number,
+  signal?: AbortSignal
+): Promise<AirQuality> {
+
   const url = new URL('https://air-quality-api.open-meteo.com/v1/air-quality');
   url.searchParams.set('latitude', String(latitude));
   url.searchParams.set('longitude', String(longitude));
@@ -359,9 +396,34 @@ export async function getAirQuality(latitude: number, longitude: number): Promis
   url.searchParams.set('timezone', 'auto');
   url.searchParams.set('hourly', 'uv_index');
 
-  const res = await fetch(url.toString());
-  if (!res.ok) throw new Error('Failed to fetch air quality');
-  const data = await res.json();
+  // Fetch air-quality data with a 10-second timeout
+  const response = await fetchJsonWithTimeout<{
+    current: Pick<
+      AirQuality,
+      | 'time'
+      | 'us_aqi'
+      | 'pm2_5'
+      | 'pm10'
+      | 'ozone'
+      | 'nitrogen_dioxide'
+      | 'sulphur_dioxide'
+      | 'carbon_monoxide'
+    >;
+    hourly: AirQuality['hourly'];
+    timezone: AirQuality['timezone'];
+  }>(
+    url.toString(),
+    signal
+  );
+
+  if (!response.body?.current) {
+    throw new Error(
+      `Failed to fetch air quality (HTTP ${response.status})`
+    );
+  }
+
+  const data = response.body;
+
   return {
     time: data.current.time,
     us_aqi: data.current.us_aqi,

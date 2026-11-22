@@ -1,20 +1,42 @@
-import { useQuery, keepPreviousData } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { getForecast, getAirQuality, searchCities } from './weather-api';
 
 // Helper to read both data and timestamp from localStorage cache
-function getCachedCacheItem<T>(key: string): { data: T; timestamp: number } | undefined {
+function getCachedCacheItem<T>(
+  key: string,
+  maxAgeMs = Infinity
+): { data: T; timestamp: number } | undefined {
   try {
     const item = localStorage.getItem(key);
-    if (item) {
-      const parsed = JSON.parse(item);
-      if (parsed && typeof parsed.data !== 'undefined') {
-        return { data: parsed.data, timestamp: parsed.timestamp || 0 };
-      }
+    if (!item) return undefined;
+
+    const parsed = JSON.parse(item);
+
+    if (!parsed || typeof parsed.data === 'undefined') {
+      return undefined;
     }
-  } catch (e) {
-    // Ignore storage errors
+
+    const timestamp = parsed.timestamp;
+
+    if (
+      typeof timestamp !== 'number' ||
+      !Number.isFinite(timestamp) ||
+      timestamp <= 0
+    ) {
+      return undefined;
+    }
+
+    const age = Date.now() - timestamp;
+
+    // Reject future timestamps and excessively old data.
+    if (age < 0 || age > maxAgeMs) {
+      return undefined;
+    }
+
+    return { data: parsed.data as T, timestamp };
+  } catch {
+    return undefined;
   }
-  return undefined;
 }
 
 // Helper to write to localStorage cache
@@ -28,12 +50,15 @@ function setCachedData<T>(key: string, data: T) {
 
 export function useWeather(lat: number | undefined, lon: number | undefined, isActive?: boolean) {
   const cacheKey = `atmos_weather_${lat}__${lon}`;
-  const cached = getCachedCacheItem<any>(cacheKey);
+  const cached = getCachedCacheItem<any>(
+  cacheKey,
+  24 * 60 * 60 * 1000 // Maximum 24-hour forecast cache
+);
 
   return useQuery({
     queryKey: ['weather', lat, lon],
-    queryFn: async () => {
-      const data = await getForecast(lat!, lon!);
+    queryFn: async ({ signal }) => {
+      const data = await getForecast(lat!, lon!, signal);
       setCachedData(cacheKey, data);
       return data;
     },
@@ -43,11 +68,9 @@ export function useWeather(lat: number | undefined, lon: number | undefined, isA
     refetchInterval: 15 * 60 * 1000, // Background poll every 15 minutes
     staleTime: 10 * 60 * 1000,      // Consider data fresh for 10 minutes (prevents spamming)
     gcTime: 24 * 60 * 60 * 1000,
-    placeholderData: keepPreviousData,
-    refetchOnMount: false,          // Prevents refetching just from mounting if within staleTime
+    refetchOnMount: true, // Refresh on mount only when cached data is stale
     refetchOnWindowFocus: false,    // Prevents refetching when switching back to tab
-    retry: 1,
-    retryDelay: 5000,
+    retry: false, // Avoid repeated requests when Open-Meteo is unavailable
   });
 }
 
@@ -57,8 +80,8 @@ export function useAirQuality(lat: number | undefined, lon: number | undefined, 
 
   return useQuery({
     queryKey: ['airQuality', lat, lon],
-    queryFn: async () => {
-      const data = await getAirQuality(lat!, lon!);
+    queryFn: async ({ signal }) => {
+      const data = await getAirQuality(lat!, lon!, signal);
       setCachedData(cacheKey, data);
       return data;
     },
@@ -68,9 +91,8 @@ export function useAirQuality(lat: number | undefined, lon: number | undefined, 
     refetchInterval: 30 * 60 * 1000,
     staleTime: 10 * 60 * 1000,
     gcTime: 24 * 60 * 60 * 1000,
-    placeholderData: keepPreviousData,
     refetchOnWindowFocus: false,
-    retry: 1,
+    retry: false, // Avoid repeated requests when Open-Meteo is unavailable
   });
 }
 

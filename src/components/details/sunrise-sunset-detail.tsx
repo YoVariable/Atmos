@@ -145,7 +145,7 @@ export function SunriseSunsetDetailContent({
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
-    hour12: false,
+    hourCycle: 'h23',
   }).formatToParts(currentTime);
 
   const getPart = (type: string) => parts.find((p) => p.type === type)?.value || '0';

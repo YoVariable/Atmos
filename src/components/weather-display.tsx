@@ -89,8 +89,8 @@ export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplay
   const observerRef = useRef<IntersectionObserver | null>(null);
 
   const currentTime = new Date();
-
-  const [debouncedIsActive, setDebouncedIsActive] = useState(isActive);
+  
+  const [debouncedIsActive, setDebouncedIsActive] = useState(false);
 
   useEffect(() => {
       if (!isActive) {
@@ -126,30 +126,44 @@ export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplay
     }
   }, []);
 
-  const { data, isLoading, error } = useWeather(location.latitude, location.longitude, debouncedIsActive);
+  const {
+    data,
+    isLoading,
+    error,
+    isRefetchError,
+    dataUpdatedAt,
+  } = useWeather(
+    location.latitude,
+    location.longitude,
+    debouncedIsActive
+  );
+
   const { data: airQuality } = useAirQuality(location.latitude, location.longitude, debouncedIsActive);
 
   const current = data?.current;
   const hourly = data?.hourly;
   const daily = data?.daily;
 
-  let startIdx = 0;
+  // Show a notice only when a stale forecast fails to refresh
+  const cacheAgeMs = dataUpdatedAt > 0
+    ? Math.max(0, Date.now() - dataUpdatedAt)
+    : 0;
 
-  const displayCode =
-    hourly && current ? getTodayEffectiveCode(hourly, current, startIdx) : 0;
+  const showStaleForecastNotice =
+    !!data &&
+    isRefetchError &&
+    dataUpdatedAt > 0 &&
+    cacheAgeMs >= 10 * 60 * 1000;
 
-  const currentHour = new Intl.DateTimeFormat('en-US', {
-    timeZone: airQuality?.timezone,
-    hour: 'numeric',
-    hourCycle: 'h23',
-  }).format(new Date()); // <-- Change this from currentTime to new Date()
+  const cacheAgeMinutes = Math.floor(cacheAgeMs / 60000);
+  const cacheAgeHours = Math.floor(cacheAgeMinutes / 60);
 
-  const nowIndex =
-    airQuality?.hourly?.time?.findIndex(
-      (t) => parseInt(t.split('T')[1].split(':')[0]) === parseInt(currentHour)
-    ) ?? 0;
+  const cacheAgeLabel = cacheAgeMinutes < 60
+    ? `${cacheAgeMinutes} minute${cacheAgeMinutes === 1 ? '' : 's'} ago`
+    : `${cacheAgeHours} hour${cacheAgeHours === 1 ? '' : 's'} ago`;
 
-  const currentUvValue = airQuality?.hourly?.uv_index?.[nowIndex] ?? 0;
+  let startIdx = hourly?.time?.length ?? 0;
+  let hasCurrentHourlyMatch = false;
 
   const locationTimeZone = data?.timezone || 'UTC';
   const parts = new Intl.DateTimeFormat('en-US', {
@@ -160,25 +174,64 @@ export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplay
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
-    hour12: false,
+    hourCycle: 'h23',
   }).formatToParts(currentTime);
 
   const getPart = (type: string) => parts.find((p) => p.type === type)?.value || '0';
   const localNowStr = `${getPart('year')}-${getPart('month')}-${getPart('day')}T${getPart('hour')}:${getPart('minute')}:${getPart('second')}`;
   const liveCityTime = new Date(localNowStr).getTime();
 
-  if (hourly && hourly.time) {
-      const currentHourNum = parseInt(getPart('hour'), 10);
-      const currentDateStr = `${getPart('year')}-${getPart('month')}-${getPart('day')}`;
-      
-      const idx = hourly.time.findIndex((t) => {
-        const [datePart, timePart] = t.split('T');
-        const hourPart = parseInt(timePart?.split(':')[0] || '0', 10);
-        return datePart === currentDateStr && hourPart === currentHourNum;
-      });
+  // Match UV data using the location's full date AND hour
+  const uvTimeZone = airQuality?.timezone || locationTimeZone;
 
-      if (idx !== -1) startIdx = idx;
+  const uvParts = new Intl.DateTimeFormat('en-US', {
+    timeZone: uvTimeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(currentTime);
+
+  const getUvPart = (type: string) =>
+    uvParts.find((p) => p.type === type)?.value || '0';
+
+  const uvHourKey =
+    `${getUvPart('year')}-${getUvPart('month')}-${getUvPart('day')}T${getUvPart('hour')}`;
+
+  const nowIndex =
+    airQuality?.hourly?.time?.findIndex(
+      (t: string) => t.slice(0, 13) === uvHourKey
+    ) ?? -1;
+
+  const currentUvValue =
+    nowIndex >= 0
+      ? (airQuality?.hourly?.uv_index?.[nowIndex] ?? 0)
+      : 0;
+
+  // Match hourly data to the location's current date and hour.
+  const currentHourKey = localNowStr.slice(0, 13);
+
+  if (hourly?.time?.length) {
+    // Select the current hour, or the next available future hour.
+    const nextIndex = hourly.time.findIndex(
+      (t: string) => t.slice(0, 13) >= currentHourKey
+    );
+
+    if (nextIndex !== -1) {
+      startIdx = nextIndex;
+
+      hasCurrentHourlyMatch =
+        hourly.time[nextIndex].slice(0, 13) === currentHourKey;
     }
+  }
+
+  // Never use a historical or future hourly code
+  // as the current weather condition.
+  const displayCode =
+    hourly && current && hasCurrentHourlyMatch
+      ? getTodayEffectiveCode(hourly, current, startIdx)
+      : (current?.weather_code ?? 0);
 
   const sunrise = daily ? new Date(daily.sunrise[0]) : new Date();
   const sunset = daily ? new Date(daily.sunset[0]) : new Date();
@@ -219,7 +272,7 @@ export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplay
       );
     }
 
-    if (error || !data || !current || !hourly || !daily) {
+  if (!data || !current || !hourly || !daily) {
       return (
         <div className="flex-1 min-h-[80vh] flex flex-col items-center justify-center p-8 space-y-4 text-center">
           <AlertCircle className="w-8 h-8 text-destructive" />
@@ -281,19 +334,19 @@ export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplay
   for (let i = startIdx; i < endIdx; i++) {
     timeline.push({ kind: 'hour', time: new Date(hourly.time[i]), index: i });
   }
-
-  if (!isSpecialSun) {
+ 
+  if (!isSpecialSun && endIdx > startIdx) {
     const windowStart = new Date(hourly.time[startIdx]).getTime();
     const windowEnd = new Date(hourly.time[endIdx - 1]).getTime();
     
-    daily.sunrise.forEach((s) => {
+    daily.sunrise.forEach((s: string) => {
       const t = new Date(s + ':00').getTime();
       if (t >= windowStart && t <= windowEnd && t > liveCityTime) {
         timeline.push({ kind: 'sun', time: new Date(s), event: 'sunrise' });
       }
     });
 
-    daily.sunset.forEach((s) => {
+    daily.sunset.forEach((s: string) => {
       const t = new Date(s + ':00').getTime();
       if (t >= windowStart && t <= windowEnd && t > liveCityTime) {
         timeline.push({ kind: 'sun', time: new Date(s), event: 'sunset' });
@@ -356,6 +409,18 @@ export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplay
           <span>H: {formatFelsius(todayHigh)}</span>
           <span>L: {formatFelsius(todayLow)}</span>
         </div>
+
+        {showStaleForecastNotice && (
+          <div
+            role="status"
+            className="mt-3 flex items-center justify-center gap-1.5 text-xs text-foreground/60 text-center"
+          >
+            <Clock className="w-3.5 h-3.5 shrink-0" />
+            <span>
+              Cached forecast · Last updated {cacheAgeLabel}
+            </span>
+          </div>
+        )}
       </section>
 
       {/* Notices */}
@@ -389,6 +454,11 @@ export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplay
           <span>Hourly Forecast</span>
         </div>
         <div className="flex gap-4 sm:gap-6 overflow-x-auto pb-0 scrollbar-hide snap-x">
+          {timeline.length === 0 && (
+            <div className="text-sm text-foreground/60 py-2">
+              No upcoming hourly forecast available.
+            </div>
+          )}
           {timeline.map((item) => {
             if (item.kind === 'sun') {
               const SunIcon = item.event === 'sunrise' ? Sunrise : Sunset;
@@ -414,8 +484,8 @@ export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplay
 
             const i = item.index;
             const timeStr = hourly.time[i];
-            const hourDate = item.time;
-            const isNow = i === startIdx;
+            const hourDate = item.time;         
+            const isNow = hasCurrentHourlyMatch && i === startIdx;
 
             // Use isLiveDay for 'Now', falling back to hourly API flags for future hours
             const apiIsDay = isNow
@@ -431,7 +501,7 @@ export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplay
 
             // The ultimate solution: Lock the current active hour directly to the hero banner's 
             // displayCode so the icon and heading are structurally guaranteed to match 100% of the time.
-            const effectiveWeatherCode = (isNow || item.index === startIdx)
+            const effectiveWeatherCode = isNow
               ? displayCode
               : getEffectiveHourlyCode(
                   rawWeatherCode,
@@ -440,8 +510,11 @@ export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplay
                 );
 
             const Icon = getWeatherIcon(effectiveWeatherCode, isHourDay ? 1 : 0);
+           
+            const temp = isNow
+              ? current.temperature_2m
+              : hourly.temperature_2m[i];
 
-            const temp = hourly.temperature_2m[i];
             const precip = hourly.precipitation_probability[i];
 
             return (
@@ -469,12 +542,21 @@ export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplay
           <span>10-Day Forecast</span>
         </div>
         <div className="space-y-1">
-          {daily.time.map((timeStr, i) => {
+          {daily.time.map((timeStr: string, i: number) => {
             const date = parseLocalDateString(timeStr);
             const dayName = i === 0 ? 'Today' : date.toLocaleDateString('en-GB', { weekday: 'short' });
 
             const dayCode = daily.weather_code?.[i] ?? displayCode;
-            const effectiveDayFlag = i === 0 && isSpecialSun ? 1 : i === 0 ? isLiveDay : 1;
+            const isPolarNight = daily.daylight_duration?.[i] === 0;
+
+            const effectiveDayFlag = isPolarNight
+              ? 0
+              : i === 0 && isSpecialSun
+                ? 1
+                : i === 0
+                  ? isLiveDay
+                  : 1;
+
             const Icon = getWeatherIcon(dayCode, effectiveDayFlag);
 
             const high = daily.temperature_2m_max[i];
@@ -577,17 +659,20 @@ export function WeatherDisplay({ location, isActive, isCurrent }: WeatherDisplay
                         <div
                           className="absolute inset-0"
                           style={{
-                          background: `linear-gradient(to right,
-                          #22c55e 0%,
-                          #a3d94a 6%,
-                          #eab308 12%,
-                          #f97316 22%,
-                          #ef4444 32%,
-                          #e43b83 40%,
-                          #a855f7 49%,
-                          #9d174d 68%,
-                          #881337 100%
-                        )`,
+                            background: `linear-gradient(to right,
+                              #22c55e 0%,
+                              #22c55e 9%,
+                              #eab308 11%,
+                              #eab308 19%,
+                              #ff8a00 21%,
+                              #ff8a00 29%,
+                              #dc2626 31%,
+                              #dc2626 39%,
+                              #a855f7 41%,
+                              #a855f7 59%,
+                              #9d174d 61%,
+                              #881337 100%
+                            )`,
                           }}
                         />
                         <div

@@ -83,6 +83,23 @@ export function DailyDetailContent({
 
   const actualHigh = daily.temperature_2m_max[selectedDay];
   const actualLow = daily.temperature_2m_min[selectedDay];
+
+  const hourlyActualValues = dayHours.map((p) => p.actual);
+
+  const hasDailyHourlyMismatch =
+    mode === 'actual' &&
+    hourlyActualValues.length > 0 &&
+    (
+      Math.abs(
+        formatFelsiusValue(actualHigh) -
+        Math.max(...hourlyActualValues)
+      ) >= 2 ||
+      Math.abs(
+        formatFelsiusValue(actualLow) -
+        Math.min(...hourlyActualValues)
+      ) >= 2
+    );
+
   const feelsHigh = dayHours.length ? Math.max(...dayHours.map((p) => p.feels)) : formatFelsiusValue(actualHigh);
   const feelsLow = dayHours.length ? Math.min(...dayHours.map((p) => p.feels)) : formatFelsiusValue(actualLow);
 
@@ -91,7 +108,13 @@ export function DailyDetailContent({
 
   const isToday = selectedDay === 0;
   const isMidnightSun = daily.daylight_duration[0] > 86340;
-  const detailsIsDay = isToday ? (isMidnightSun ? 1 : current?.is_day ?? 1) : 1;
+  const isPolarNight = daily.daylight_duration?.[selectedDay] === 0;
+
+  const detailsIsDay = isPolarNight
+    ? 0
+    : isToday
+      ? (isMidnightSun ? 1 : current?.is_day ?? 1)
+      : 1;
   
   let displayCode: number;
   if (selectedDay === 0 && dominantCode !== undefined) {
@@ -104,6 +127,7 @@ export function DailyDetailContent({
   }
 
   const Icon = getWeatherIcon(displayCode, detailsIsDay);
+
   const precipChance = daily.precipitation_probability_max[selectedDay];
 
   const formatTooltipTime = (rawHour: number) => {
@@ -300,6 +324,15 @@ export function DailyDetailContent({
           </AreaChart>
         </ResponsiveContainer>
       </div>
+
+            {/* Explain differences between daily and hourly extremes */}
+      {hasDailyHourlyMismatch && (
+        <p className="text-xs text-foreground/50">
+          Daily highs and lows are model-reported extremes.
+          The H/L markers show the highest and lowest
+          hourly temperatures, which may differ.
+        </p>
+      )}
 
       <div>
         <div className="flex justify-between items-center mb-1">

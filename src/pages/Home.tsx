@@ -7,15 +7,12 @@ import { LocationSearch } from '@/components/location-search';
 import { Compass, Navigation } from 'lucide-react';
 import { CompassModal } from '@/components/compass-modal';
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import { getForecast, getAirQuality } from '@/lib/weather-api';
 
 export default function Home() {
   const { locations, activeLocationId, setActiveLocationId, isLoaded, addLocation, refreshCurrentLocation, isLocatingCurrent } =
     useLocations();
 
   const scrollRef = useRef<HTMLDivElement>(null);
-  const dotsContainerRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const isProgrammaticScroll = useRef(false);
   const [isCompassOpen, setIsCompassOpen] = useState(false);
@@ -40,20 +37,6 @@ export default function Home() {
     }
   }, [activeLocationId, locations, activeIndex]);
 
-  // Keep the active dot centered within the 10-dot scrolling container window
-  useEffect(() => {
-    if (dotsContainerRef.current) {
-      const activeDot = dotsContainerRef.current.querySelector('[data-active="true"]');
-      if (activeDot) {
-        activeDot.scrollIntoView({
-          behavior: 'smooth',
-          inline: 'nearest',
-          block: 'nearest',
-        });
-      }
-    }
-  }, [activeIndex]);
-
   // Handle scroll events to update active index
   const handleScroll = useCallback(() => {
     if (!scrollRef.current || isProgrammaticScroll.current) return;
@@ -67,32 +50,6 @@ export default function Home() {
     }
   }, [activeIndex, locations, setActiveLocationId]);
 
-  const queryClient = useQueryClient();
-
-  useEffect(() => {
-    if (!locations || locations.length <= 1) return;
-
-    const nextIndex = (activeIndex + 1) % locations.length;
-    const nextLoc = locations[nextIndex];
-    if (!nextLoc || nextLoc.latitude === undefined || nextLoc.longitude === undefined) return;
-
-    const timer = setTimeout(() => {
-      queryClient.prefetchQuery({
-        queryKey: ['weather', nextLoc.latitude, nextLoc.longitude],
-        queryFn: () => getForecast(nextLoc.latitude, nextLoc.longitude),
-        staleTime: 10 * 60 * 1000,
-      });
-
-      queryClient.prefetchQuery({
-        queryKey: ['airQuality', nextLoc.latitude, nextLoc.longitude],
-        queryFn: () => getAirQuality(nextLoc.latitude, nextLoc.longitude),
-        staleTime: 15 * 60 * 1000,
-      });
-    }, 200);
-
-    return () => clearTimeout(timer);
-  }, [activeIndex, locations, queryClient]);
-
   const currentLocation =
     locations.find((loc) => loc.id === activeLocationId) ||
     locations[activeIndex] ||
@@ -100,6 +57,62 @@ export default function Home() {
     { latitude: 0, longitude: 0, name: '' };
 
   if (!isLoaded) return null;
+
+    // Build a consistent location indicator window across platforms.
+  const indexedLocations = locations.map((loc, i) => ({ loc, i }));
+
+  const currentLocationIndex = locations.findIndex(
+    (loc) => loc.isCurrent
+  );
+
+  // A nine-position window can contain Current Location
+  // and the selected location when they are at most 8 apart.
+  const showCurrentIndicator =
+    currentLocationIndex !== -1 &&
+    Math.abs(activeIndex - currentLocationIndex) <= 8;
+
+  const indicatorPool = showCurrentIndicator
+    ? indexedLocations
+    : indexedLocations.filter(({ loc }) => !loc.isCurrent);
+
+  const visibleCount = Math.min(
+    showCurrentIndicator ? 9 : 10,
+    indicatorPool.length
+  );
+
+  const poolActiveIndex = indicatorPool.findIndex(
+    ({ i }) => i === activeIndex
+  );
+
+  let indicatorStart = Math.max(
+    0,
+    Math.min(
+      poolActiveIndex - Math.floor(visibleCount / 2),
+      indicatorPool.length - visibleCount
+    )
+  );
+
+  // Keep Current Location visible throughout its nine-position window.
+  if (showCurrentIndicator) {
+    const poolCurrentIndex = indicatorPool.findIndex(
+      ({ i }) => i === currentLocationIndex
+    );
+
+    indicatorStart = Math.max(
+      poolCurrentIndex - visibleCount + 1,
+      Math.min(indicatorStart, poolCurrentIndex)
+    );
+
+    indicatorStart = Math.max(
+      0,
+      Math.min(indicatorStart, indicatorPool.length - visibleCount)
+    );
+  }
+
+  const visibleIndicators = indicatorPool.slice(
+    indicatorStart,
+    indicatorStart + visibleCount
+  );
 
   return (
     <div className="h-[100dvh] w-full relative overflow-hidden bg-background selection:bg-primary/20 flex flex-col">
@@ -124,7 +137,7 @@ export default function Home() {
           <footer className="h-16 shrink-0 flex items-center justify-between px-6 z-20 relative">
             <div className="absolute inset-0 bg-background/80 backdrop-blur-2xl border-t border-black/[0.03] pointer-events-none" />
             
-{/* Left side actions */}
+          {/* Left side actions */}
             <div className="flex items-center gap-1 relative z-10 -ml-2.5">
               <button 
                 onClick={() => setIsCompassOpen(true)}
@@ -139,13 +152,16 @@ export default function Home() {
               </div>
             </div>
 
-            {/* CENTER: 10-dot window container (max-w-[210px] with smooth scrolling track) */}
-            <div className="flex items-center justify-center flex-1 relative z-10 px-4 overflow-hidden">
-              <div 
-                ref={dotsContainerRef}
-                className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1 px-2 shrink-0 scroll-smooth mx-auto max-w-[210px]"
+          {/* CENTER: Responsive 9/10-indicator location window */}
+            <div className="flex items-center justify-center flex-1 min-w-0 relative z-10 px-1 overflow-hidden">
+              <div
+                className={`flex w-full max-w-[210px] min-w-0 items-center py-1 mx-auto ${
+                  visibleIndicators.length >= 9
+                    ? 'justify-between'
+                    : 'justify-center gap-2'
+                }`}
               >
-                {locations.map((loc, i) => {
+                {visibleIndicators.map(({ loc, i }) => {
                   const isActive = i === activeIndex;
                   return (
                     <div 
@@ -165,7 +181,7 @@ export default function Home() {
                           }, 300);
                         }
                       }}
-                      className="flex items-center justify-center transition-all duration-300 cursor-pointer shrink-0 p-1"
+                      className="flex items-center justify-center shrink-0 p-0.5 sm:p-1 transition-all duration-300 cursor-pointer"
                     >
                       {loc.isCurrent ? (
                         <Navigation 
